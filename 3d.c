@@ -479,7 +479,7 @@ int main(int argc, char *argv[])
         }
 
         mat4 trans;
-        m4transmake(0.0f, 0.0f, 5.0f, trans);
+        m4transmake(0.0f, 0.0f, 1.5f, trans);
 
         mat4 roty, rotz;
         rotateMatrix(roty, angley, 'y');
