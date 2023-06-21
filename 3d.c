@@ -120,6 +120,13 @@ void subtract(const vec3 v1, const vec3 v2, vec3 res)
     res[2] = v1[2] - v2[2];
 }
 
+void v3add(const vec3 v1, const vec3 v2, vec3 res)
+{
+    res[0] = v1[0] + v2[0];
+    res[1] = v1[1] + v2[1];
+    res[2] = v1[2] + v2[2];
+}
+
 static inline void m4identity(mat4 m)
 {
     memset(m, 0, sizeof(mat4));
