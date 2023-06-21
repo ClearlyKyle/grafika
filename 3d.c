@@ -3,6 +3,7 @@
 #include <math.h>
 
 #include "grafika.h"
+#include "input.h"
 #include "tex.h"
 #include "obj.h"
 
@@ -412,10 +413,15 @@ int main(int argc, char *argv[])
     float anglez = 0.0f;
     float transz = 2.0f;
 
+    float rotationAngleX = 0.0f, rotationAngleY = 0.0f;
+
     while (!rend.quit)
     {
         for (int i = 0; i < GRAFIKA_SCREEN_WIDTH * GRAFIKA_SCREEN_HEIGHT; ++i)
             zbuffer[i] = 1.0f;
+
+        input_update();
+        int deltaX = 0, deltaY = 0;
 
         SDL_Event event;
         while (SDL_PollEvent(&event))
@@ -449,27 +455,37 @@ int main(int argc, char *argv[])
             {
                 transz -= 0.1f;
             }
+
+            if (event.type == SDL_MOUSEMOTION && (event.motion.state & SDL_BUTTON(SDL_BUTTON_LEFT)))
+            {
+                deltaX = event.motion.xrel; // Change in mouse X position
+                deltaY = event.motion.yrel; // Change in mouse Y position
+            }
         }
 
-        printf("tranz %f\n", transz);
-
         mat4 trans;
-        m4transmake(0.0f, 0.0f, transz, state.model);
+        m4transmake(0.0f, 0.0f, transz, trans);
 
-        // mat4 roty, rotz;
-        // rotateMatrix(roty, angley, 'y');
-        // rotateMatrix(rotz, anglez, 'z');
+        if (deltaX != 0 && deltaY != 0)
+        { // Mouse based rotation
+            rotationAngleX += deltaY * 0.1f;
+            rotationAngleY += deltaX * 0.1f; // 0.1f = sensitivity
+        }
+        printf("rot angle : %f, %f\n", rotationAngleX, rotationAngleY);
 
-        // mat4 rot;
-        // m4mulm4(roty, rotz, rot);
+        // Create rotation matrices
+        mat4 rotx, roty;
+        rotateMatrix(rotx, DEG2RAD(rotationAngleX), 'x');
+        rotateMatrix(roty, DEG2RAD(rotationAngleY), 'y');
 
-        // m4mulm4(trans, rot, state.model);
+        // Combine rotations by multiplying matrices
+        mat4 rot;
+        m4mulm4(roty, rotx, rot);
+        m4mulm4(trans, rot, state.model);
 
         grafika_clear();
         update();
         grafika_present();
-
-        // rend.quit = true;
     }
 
     obj_destroy(&state.obj);
