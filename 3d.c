@@ -175,7 +175,7 @@ void m4lookat(const vec3 eye, const vec3 target, const vec3 up, mat4 res)
     normalize(right);
 
     cross(right, forward, new_up);
-    // normalize(new_up);
+    normalize(new_up);
 
     res[0][0] = right[0];
     res[0][1] = new_up[0];
@@ -200,83 +200,32 @@ void m4lookat(const vec3 eye, const vec3 target, const vec3 up, mat4 res)
 
 static inline void m4transmake(float x, float y, float z, mat4 res)
 {
-    res[0][0] = 1.0f;
-    res[0][1] = 0.0f;
-    res[0][2] = 0.0f;
-    res[0][3] = 0.0f;
-
-    res[1][0] = 0.0f;
-    res[1][1] = 1.0f;
-    res[1][2] = 0.0f;
-    res[1][3] = 0.0f;
-
-    res[2][0] = 0.0f;
-    res[2][1] = 0.0f;
-    res[2][2] = 1.0f;
-    res[2][3] = 0.0f;
-
+    m4identity(res);
     res[3][0] = x;
     res[3][1] = y;
     res[3][2] = z;
-    res[3][3] = 1.0f;
 }
 
-static inline void m4perspective(float fov, float aspect, float near, float far, mat4 res)
+static inline void m4perspective(float fovy, float aspect, float nearZ, float farZ, mat4 res)
 {
-    const float f   = 1.0f / tanf(fov * 0.5f);
-    const float dem = 1.0f / (near - far);
+    memset(res, 0, sizeof(mat4));
 
+    const float f  = 1.0f / tanf(fovy * 0.5f);
+    const float fn = 1.0f / (nearZ - farZ);
+
+#if 1 // [-1, 1]
     res[0][0] = f / aspect;
-    res[0][1] = 0.0f;
-    res[0][2] = 0.0f;
-    res[0][3] = 0.0f;
-
-    res[1][0] = 0.0f;
     res[1][1] = f;
-    res[1][2] = 0.0f;
-    res[1][3] = 0.0f;
-
-    res[2][0] = 0.0f;
-    res[2][1] = 0.0f;
-    res[2][2] = (far + near) * dem;
+    res[2][2] = (nearZ + farZ) * fn;
     res[2][3] = -1.0f;
-
-    res[3][0] = 0.0f;
-    res[3][1] = 0.0f;
-    res[3][2] = (2.0f * far * near) * dem;
-    res[3][3] = 0.0f;
-}
-
-static void m4viewport(mat4 res)
-{
-    res[0][0] = 1.0f;
-    res[0][1] = 0.0f;
-    res[0][2] = 0.0f;
-    res[0][3] = 0.0f;
-
-    res[1][0] = 0.0f;
-    res[1][1] = 1.0f;
-    res[1][2] = 0.0f;
-    res[1][3] = 0.0f;
-
-    res[2][0] = 0.0f;
-    res[2][1] = 0.0f;
-    res[2][2] = 1.0f;
-    res[2][3] = 0.0f;
-
-    res[3][0] = 0.0f;
-    res[3][1] = 0.0f;
-    res[3][2] = 0.0f;
-    res[3][3] = 1.0f;
-
-    const float half_width = 0.5f * GRAFIKA_SCREEN_WIDTH;
-    const float half_heigh = 0.5f * GRAFIKA_SCREEN_HEIGHT;
-
-    res[0][0] = half_width;
-    res[1][1] = -half_heigh;
-
-    res[3][0] = half_width;
-    res[3][1] = half_heigh;
+    res[3][2] = 2.0f * nearZ * farZ * fn;
+#else // [0, 1]
+    res[0][0] = f / aspect;
+    res[1][1] = f;
+    res[2][2] = farZ * fn;
+    res[2][3] = -1.0f;
+    res[3][2] = nearZ * farZ * fn;
+#endif
 }
 
 void drawtriangle(const triangle t, const vec3 texcoords[3], const mat4 MVP)
@@ -289,17 +238,32 @@ void drawtriangle(const triangle t, const vec3 texcoords[3], const mat4 MVP)
         //  clip space position
         m4mulv4(MVP, (vec4){t[i][0], t[i][1], t[i][2], 1.0f}, clipspace[i]);
 
-        // perspective division
-        v3div(clipspace[i], clipspace[i][3], ndc[i]);
+        // clipping (is this correct?)
+        const float x = fabsf(clipspace[i][0]);
+        const float y = fabsf(clipspace[i][1]);
+        const float w = fabsf(clipspace[i][3]);
+
+        if ((-w <= x && x <= w) && (-w <= y && y <= w))
+            continue;
+        else
+            return;
     }
 
-    // back face culling
-    vec3 sub10, sub20, normal;
-    v3sub(ndc[1], ndc[0], sub10);
-    v3sub(ndc[2], ndc[0], sub20);
-    cross(sub10, sub20, normal);
-    if (normal[2] > 0.0f)
-        return;
+    // perspective division (clip to ndc)
+    for (size_t i = 0; i < 3; i++)
+    {
+        ndc[i][0] = clipspace[i][0] / clipspace[i][3];
+        ndc[i][1] = clipspace[i][1] / clipspace[i][3];
+        ndc[i][2] = clipspace[i][2] / clipspace[i][3];
+    }
+
+    // back face culling (surface normal, can this be done with area?)
+    // vec3 sub10, sub20, normal;
+    // v3sub(ndc[1], ndc[0], sub10);
+    // v3sub(ndc[2], ndc[0], sub20);
+    // cross(sub10, sub20, normal);
+    // if (normal[2] > 0.0f)
+    //    return;
 
     for (int i = 0; i < 3; ++i)
     {
@@ -432,13 +396,13 @@ int main(int argc, char *argv[])
 
     vec3 eye    = {0.0f, 0.0f, 1.0f};
     vec3 target = {0.0f, 0.0f, 0.0f};
-    vec3 up     = {0.0f, 1.0f, 0.0f};
+    vec3 up     = {0.0f, -1.0f, 0.0f};
     m4lookat(eye, target, up, state.view);
 
     m4perspective(DEG2RAD(60.0f), (float)GRAFIKA_SCREEN_WIDTH / (float)GRAFIKA_SCREEN_HEIGHT, 0.1f, 100.0f, state.proj);
 
     // state.obj = obj_load("cube.obj");
-    // state.obj = obj_load("plane.obj");
+    //  state.obj = obj_load("plane.obj");
     state.obj = obj_load("bunny.obj");
 
     // state.tex = tex_load("wood.png", false);
@@ -446,6 +410,7 @@ int main(int argc, char *argv[])
 
     float angley = 0.0f;
     float anglez = 0.0f;
+    float transz = 2.0f;
 
     while (!rend.quit)
     {
@@ -476,19 +441,29 @@ int main(int argc, char *argv[])
             {
                 anglez -= 0.1f;
             }
+            else if (SDL_KEYDOWN == event.type && SDL_SCANCODE_UP == event.key.keysym.scancode)
+            {
+                transz += 0.1f;
+            }
+            else if (SDL_KEYDOWN == event.type && SDL_SCANCODE_DOWN == event.key.keysym.scancode)
+            {
+                transz -= 0.1f;
+            }
         }
 
+        printf("tranz %f\n", transz);
+
         mat4 trans;
-        m4transmake(0.0f, 0.0f, 1.5f, trans);
+        m4transmake(0.0f, 0.0f, transz, state.model);
 
-        mat4 roty, rotz;
-        rotateMatrix(roty, angley, 'y');
-        rotateMatrix(rotz, anglez, 'z');
+        // mat4 roty, rotz;
+        // rotateMatrix(roty, angley, 'y');
+        // rotateMatrix(rotz, anglez, 'z');
 
-        mat4 rot;
-        m4mulm4(roty, rotz, rot);
+        // mat4 rot;
+        // m4mulm4(roty, rotz, rot);
 
-        m4mulm4(trans, rot, state.model);
+        // m4mulm4(trans, rot, state.model);
 
         grafika_clear();
         update();
