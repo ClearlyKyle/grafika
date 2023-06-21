@@ -10,19 +10,26 @@ typedef struct vertindices
     int v_idx, vn_idx, vt_idx;
 } vertindices_t;
 
+typedef struct BoundingBox
+{
+    float min[3], max[3]; // x, y, z
+} BoundingBox_t;
+
 typedef struct obj
 {
+    size_t num_pos; // X, Y, Z of vertex
+    size_t num_norms;
+    size_t num_texs;
+    size_t num_f_rows; // How many rows starting with f
+    size_t num_verts;  // How many individual vertices
+
+    BoundingBox_t bbox;
+
     float *pos;
     float *norms;
     float *texs;
 
-    vertindices_t *indices;
-    size_t         num_verts;
-
-    size_t num_pos;
-    size_t num_norms;
-    size_t num_texs;
-    size_t num_f_rows;
+    vertindices_t *indices; // Index values for 1 vertex
 } obj_t;
 
 obj_t obj_load(const char *filename)
@@ -65,6 +72,11 @@ obj_t obj_load(const char *filename)
     // Reset file pointer to the start of the file
     fseek(fp, 0, SEEK_SET);
 
+    // bounding box
+    BoundingBox_t bbox;
+    bbox.min[0] = bbox.min[1] = bbox.min[2] = 1e9;  // Initialize with large values
+    bbox.max[0] = bbox.max[1] = bbox.max[2] = -1e9; // Initialize with small values
+
     int nrm_idx = 0, pos_idx = 0, tex_idx = 0, indi_idx = 0;
     while (fgets(linebuffer, sizeof(linebuffer), fp) != NULL)
     {
@@ -85,10 +97,21 @@ obj_t obj_load(const char *filename)
         }
         else if (linebuffer[0] == 'v')
         {
-            sscanf(linebuffer, "v %f %f %f",
-                   &obj.pos[pos_idx + 0],
-                   &obj.pos[pos_idx + 1],
-                   &obj.pos[pos_idx + 2]);
+            float pos[3] = {0};
+            sscanf(linebuffer, "v %f %f %f", &pos[0], &pos[1], &pos[2]);
+
+            bbox.min[0] = (pos[0] < bbox.min[0]) ? pos[0] : bbox.min[0];
+            bbox.min[1] = (pos[1] < bbox.min[1]) ? pos[1] : bbox.min[1];
+            bbox.min[2] = (pos[2] < bbox.min[2]) ? pos[2] : bbox.min[2];
+
+            bbox.max[0] = (pos[0] > bbox.max[0]) ? pos[0] : bbox.max[0];
+            bbox.max[1] = (pos[1] > bbox.max[1]) ? pos[1] : bbox.max[1];
+            bbox.max[2] = (pos[2] > bbox.max[2]) ? pos[2] : bbox.max[2];
+
+            obj.pos[pos_idx + 0] = pos[0];
+            obj.pos[pos_idx + 1] = pos[1];
+            obj.pos[pos_idx + 2] = pos[2];
+
             pos_idx += 3;
         }
         else if (linebuffer[0] == 'f')
@@ -113,11 +136,17 @@ obj_t obj_load(const char *filename)
         }
     }
 
+    obj.bbox = bbox;
+
     // printf("poss : %d\n", posCount);
     // printf("texs : %d\n", texCount);
     // printf("norms: %d\n", normalCount);
     // printf("faces: %d\n", frowCount);
     // printf("verts: %d\n", frowCount * 3);
+
+    printf("Bounding box : min(%f, %f, %f), max(%f, %f, %f)\n",
+           bbox.min[0], bbox.min[1], bbox.min[2],
+           bbox.max[0], bbox.max[1], bbox.max[2]);
 
     // for (size_t i = 0; i < obj.num_pos; i++)
     //{
