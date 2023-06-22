@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <string.h>
 
 typedef struct vertindices
 {
@@ -44,6 +45,7 @@ obj_t obj_load(const char *filename)
     int texCount    = 0;
     int normalCount = 0;
     int frowCount   = 0;
+    int vertCount   = 0;
     while (fgets(linebuffer, sizeof(linebuffer), fp) != NULL)
     {
         if (linebuffer[0] == 'v' && linebuffer[1] == 'n')
@@ -53,7 +55,21 @@ obj_t obj_load(const char *filename)
         else if (linebuffer[0] == 'v')
             posCount++;
         else if (linebuffer[0] == 'f')
+        {
+            // Count the number of spaces in the line
+            int spaceCount = 0;
+            for (int i = 0; i < strlen(linebuffer); i++)
+                if (linebuffer[i] == ' ')
+                    spaceCount++;
+
+            if (spaceCount == 4)
+            {
+                vertCount += 3;
+                frowCount++;
+            }
+            vertCount += 3;
             frowCount++;
+        }
     }
 
     obj_t obj      = {0};
@@ -61,13 +77,19 @@ obj_t obj_load(const char *filename)
     obj.num_texs   = texCount;
     obj.num_pos    = posCount;
     obj.num_f_rows = frowCount;
-    obj.num_verts  = frowCount * 3; // Assume triangulation
+    obj.num_verts  = vertCount; // Assume triangulation
 
     obj.pos   = malloc(sizeof(float) * posCount * 3);
     obj.norms = malloc(sizeof(float) * normalCount * 3);
     obj.texs  = malloc(sizeof(float) * texCount * 2);
 
-    obj.indices = malloc(sizeof(vertindices_t) * frowCount * 3);
+    obj.indices = malloc(sizeof(vertindices_t) * vertCount);
+
+    printf("poss : %d\n", posCount);
+    printf("norms: %d\n", normalCount);
+    printf("texs : %d\n", texCount);
+    printf("faces: %d\n", frowCount);
+    printf("verts: %d\n", frowCount * 3);
 
     // Reset file pointer to the start of the file
     fseek(fp, 0, SEEK_SET);
@@ -116,16 +138,54 @@ obj_t obj_load(const char *filename)
         }
         else if (linebuffer[0] == 'f')
         {
-            int fv[3], fvt[3], fvn[3];
-            int result = sscanf(linebuffer, "f %d/%d/%d %d/%d/%d %d/%d/%d",
-                                &fv[0], &fvt[0], &fvn[0],
-                                &fv[1], &fvt[1], &fvn[1],
-                                &fv[2], &fvt[2], &fvn[2]);
+            int fv[4], fvt[4], fvn[4];
 
-            if (result != 9)
-                printf("OBJ ERROR! the face values are of a new format, update this code!\n");
+            int space_counter = 0;
 
-            for (size_t f = 0; f < 3; f++)
+            // Count the number of spaces in the line
+            for (int i = 0; i < strlen(linebuffer); i++)
+            {
+                if (linebuffer[i] == ' ')
+                    space_counter++;
+            }
+
+            // TODO : Read up to a space and save values
+            if (space_counter == 4)
+            {
+                int result = sscanf(linebuffer, "f %d/%d/%d %d/%d/%d %d/%d/%d %d/%d/%d",
+                                    &fv[0], &fvt[0], &fvn[0],
+                                    &fv[1], &fvt[1], &fvn[1],
+                                    &fv[2], &fvt[2], &fvn[2],
+                                    &fv[3], &fvt[3], &fvn[3]);
+                assert(result == 12);
+
+                vertindices_t *fptr = &obj.indices[indi_idx + 0];
+                fptr->v_idx         = fv[0] - 1;
+                fptr->vt_idx        = fvt[0] - 1;
+                fptr->vn_idx        = fvn[0] - 1;
+
+                fptr++;
+                fptr->v_idx  = fv[2] - 1;
+                fptr->vt_idx = fvt[2] - 1;
+                fptr->vn_idx = fvn[2] - 1;
+
+                fptr++;
+                fptr->v_idx  = fv[3] - 1;
+                fptr->vt_idx = fvt[3] - 1;
+                fptr->vn_idx = fvn[3] - 1;
+
+                indi_idx += 3;
+            }
+            else if (space_counter == 3)
+            {
+                int result = sscanf(linebuffer, "f %d/%d/%d %d/%d/%d %d/%d/%d",
+                                    &fv[0], &fvt[0], &fvn[0],
+                                    &fv[1], &fvt[1], &fvn[1],
+                                    &fv[2], &fvt[2], &fvn[2]);
+                assert(result == 9);
+            }
+
+            for (size_t f = 0; f < 3; f++) // Load in the first 3 values: f 0/0/0 1/1/1 2/2/2
             {
                 vertindices_t *fptr = &obj.indices[indi_idx + f];
                 fptr->v_idx         = fv[f] - 1;
@@ -138,49 +198,51 @@ obj_t obj_load(const char *filename)
 
     obj.bbox = bbox;
 
-    // printf("poss : %d\n", posCount);
-    // printf("texs : %d\n", texCount);
-    // printf("norms: %d\n", normalCount);
-    // printf("faces: %d\n", frowCount);
-    // printf("verts: %d\n", frowCount * 3);
+#if 0 // DEBUG
+    printf("poss : %d\n", posCount);
+    printf("texs : %d\n", texCount);
+    printf("norms: %d\n", normalCount);
+    printf("faces: %d\n", frowCount);
+    printf("verts: %d\n", frowCount * 3);
 
     printf("Bounding box : min(%f, %f, %f), max(%f, %f, %f)\n",
            bbox.min[0], bbox.min[1], bbox.min[2],
            bbox.max[0], bbox.max[1], bbox.max[2]);
 
-    // for (size_t i = 0; i < obj.num_pos; i++)
-    //{
-    //     const int index = i * 3;
-    //     printf("v %f, %f, %f\n",
-    //            obj.pos[index + 0],
-    //            obj.pos[index + 1],
-    //            obj.pos[index + 2]);
-    // }
+    for (size_t i = 0; i < obj.num_pos; i++)
+    {
+        const int index = i * 3;
+        printf("v %f, %f, %f\n",
+               obj.pos[index + 0],
+               obj.pos[index + 1],
+               obj.pos[index + 2]);
+    }
 
-    // for (size_t i = 0; i < obj.num_norms; i++)
-    //{
-    //     const int index = i * 3;
-    //     printf("vn %f, %f, %f\n",
-    //            obj.norms[index + 0],
-    //            obj.norms[index + 1],
-    //            obj.norms[index + 2]);
-    // }
+    for (size_t i = 0; i < obj.num_norms; i++)
+    {
+        const int index = i * 3;
+        printf("vn %f, %f, %f\n",
+               obj.norms[index + 0],
+               obj.norms[index + 1],
+               obj.norms[index + 2]);
+    }
 
-    // for (size_t i = 0; i < obj.num_texs; i++)
-    //{
-    //     const int index = i * 2;
-    //     printf("vt %f, %f\n",
-    //            obj.texs[index + 0],
-    //            obj.texs[index + 1]);
-    // }
+    for (size_t i = 0; i < obj.num_texs; i++)
+    {
+        const int index = i * 2;
+        printf("vt %f, %f\n",
+               obj.texs[index + 0],
+               obj.texs[index + 1]);
+    }
 
-    // for (size_t i = 0; i < obj.num_verts; i++)
-    //{
-    //     printf("%d, %d, %d\n",
-    //            obj.indices[i].v_idx,
-    //            obj.indices[i].vt_idx,
-    //            obj.indices[i].vn_idx);
-    // }
+    for (size_t i = 0; i < obj.num_verts; i++)
+    {
+        printf("%d, %d, %d\n",
+               obj.indices[i].v_idx,
+               obj.indices[i].vt_idx,
+               obj.indices[i].vn_idx);
+    }
+#endif
 
     fclose(fp);
 
