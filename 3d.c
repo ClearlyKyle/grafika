@@ -172,8 +172,11 @@ void rotateMatrix(mat4 matrix, float angle, char axis)
     }
 }
 
-void m4lookat(const vec3 eye, const vec3 target, const vec3 up, mat4 res)
+void m4lookat(const vec3 eye, const vec3 dir, const vec3 up, mat4 res)
 {
+    vec3 target;
+    v3add(eye, dir, target);
+
     vec3 forward, right, new_up;
 
     subtract(target, eye, forward);
@@ -183,7 +186,7 @@ void m4lookat(const vec3 eye, const vec3 target, const vec3 up, mat4 res)
     normalize(right);
 
     cross(right, forward, new_up);
-    normalize(new_up);
+    // normalize(new_up);
 
     res[0][0] = right[0];
     res[0][1] = new_up[0];
@@ -212,6 +215,14 @@ static inline void m4transmake(float x, float y, float z, mat4 res)
     res[3][0] = x;
     res[3][1] = y;
     res[3][2] = z;
+}
+
+static inline void m4scalemake(float x, float y, float z, mat4 res)
+{
+    m4identity(res);
+    res[0][0] = x;
+    res[1][1] = y;
+    res[2][2] = z;
 }
 
 static inline void m4perspective(float fovy, float aspect, float nearZ, float farZ, mat4 res)
@@ -402,32 +413,36 @@ int main(int argc, char *argv[])
 {
     grafika_startup();
 
-    vec3 eye    = {0.0f, 0.0f, 1.0f};
-    vec3 target = {0.0f, 0.0f, 0.0f};
-    vec3 up     = {0.0f, -1.0f, 0.0f};
-    m4lookat(eye, target, up, state.view);
-
     m4perspective(DEG2RAD(60.0f), (float)GRAFIKA_SCREEN_WIDTH / (float)GRAFIKA_SCREEN_HEIGHT, 0.1f, 100.0f, state.proj);
 
-    // state.obj = obj_load("cube.obj");
-    //  state.obj = obj_load("plane.obj");
-    state.obj = obj_load("bunny.obj");
+    state.obj = obj_load("cube.obj");
+    // state.obj = obj_load("plane.obj");
+    // state.obj = obj_load("bunny.obj");
 
-    // state.tex = tex_load("wood.png", false);
-    state.tex = tex_load("metal.png", false);
+    state.tex = tex_load("wood.png", false);
+    // state.tex = tex_load("metal.png", false);
 
-    float angley = 0.0f;
-    float anglez = 0.0f;
-    float transz = 2.0f;
+    // Calculate model height
+    BoundingBox_t bbox   = state.obj.bbox;
+    float         height = bbox.min[1] + bbox.max[1];
+
+    float transz = -6.5f;
+
+    // Scale model height to 1
+    float model_scale = 1.0f / (bbox.max[1] - bbox.min[1]);
+
+    mat4 scale;
+    m4scalemake(model_scale, model_scale, model_scale, scale);
 
     float rotationAngleX = 0.0f, rotationAngleY = 0.0f;
+    float scrollAmount = -2.0f;
 
     while (!rend.quit)
     {
         for (int i = 0; i < GRAFIKA_SCREEN_WIDTH * GRAFIKA_SCREEN_HEIGHT; ++i)
             zbuffer[i] = 1.0f;
 
-        input_update();
+        // input_update();
         int deltaX = 0, deltaY = 0;
 
         SDL_Event event;
@@ -436,23 +451,6 @@ int main(int argc, char *argv[])
             if (SDL_QUIT == event.type)
             {
                 rend.quit = true;
-                break;
-            }
-            else if (SDL_KEYDOWN == event.type && SDL_SCANCODE_D == event.key.keysym.scancode)
-            {
-                angley += 0.1f;
-            }
-            else if (SDL_KEYDOWN == event.type && SDL_SCANCODE_A == event.key.keysym.scancode)
-            {
-                angley -= 0.1f;
-            }
-            else if (SDL_KEYDOWN == event.type && SDL_SCANCODE_W == event.key.keysym.scancode)
-            {
-                anglez += 0.1f;
-            }
-            else if (SDL_KEYDOWN == event.type && SDL_SCANCODE_S == event.key.keysym.scancode)
-            {
-                anglez -= 0.1f;
             }
             else if (SDL_KEYDOWN == event.type && SDL_SCANCODE_UP == event.key.keysym.scancode)
             {
@@ -468,27 +466,40 @@ int main(int argc, char *argv[])
                 deltaX = event.motion.xrel; // Change in mouse X position
                 deltaY = event.motion.yrel; // Change in mouse Y position
             }
+
+            if (event.type == SDL_MOUSEWHEEL)
+            {
+                scrollAmount += (float)event.wheel.y;
+                if (scrollAmount > -2.0f)
+                    scrollAmount = -2.0f;
+            }
         }
+        // printf("tranz : %f\n", transz);
+
+        vec3 eye    = {0.0f, 0.0f, scrollAmount};
+        vec3 target = {0.0f, 0.0f, -1.0f};
+        vec3 up     = {0.0f, -1.0f, 0.0f};
+        m4lookat(eye, target, up, state.view);
 
         mat4 trans;
-        m4transmake(0.0f, 0.0f, transz, trans);
+        m4transmake(0.0f, -(height * 0.5f), 0.0f, trans);
 
         if (deltaX != 0 && deltaY != 0)
         { // Mouse based rotation
-            rotationAngleX += deltaY * 0.1f;
-            rotationAngleY += deltaX * 0.1f; // 0.1f = sensitivity
+            rotationAngleX += deltaY * 0.4f;
+            rotationAngleY += deltaX * 0.4f; // 0.1f = sensitivity
         }
-        printf("rot angle : %f, %f\n", rotationAngleX, rotationAngleY);
 
         // Create rotation matrices
         mat4 rotx, roty;
         rotateMatrix(rotx, DEG2RAD(rotationAngleX), 'x');
         rotateMatrix(roty, DEG2RAD(rotationAngleY), 'y');
 
-        // Combine rotations by multiplying matrices
+        // Combine rotations by multiplying matrices (SRT)
         mat4 rot;
-        m4mulm4(roty, rotx, rot);
-        m4mulm4(trans, rot, state.model);
+        m4mulm4(rotx, roty, rot);
+        m4mulm4(rot, scale, state.model);
+        m4mulm4(trans, state.model, state.model);
 
         grafika_clear();
         update();
