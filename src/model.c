@@ -5,6 +5,7 @@
 #include "grafika.h"
 #include "tex.h"
 #include "obj.h"
+#include "timer.h"
 
 #define max(a, b) (((a) > (b)) ? (a) : (b))
 #define min(a, b) (((a) < (b)) ? (a) : (b))
@@ -383,6 +384,8 @@ static inline void update(void)
     m4mulm4(state.proj, MVP, MVP);
 
     obj_t obj = state.obj;
+
+#pragma omp parallel for shared(obj)
     for (int i = 0; i < obj.num_f_rows; i++)
     {
         triangle t     = {0};
@@ -412,14 +415,14 @@ int main(int argc, char *argv[])
 
     m4perspective(DEG2RAD(60.0f), (float)GRAFIKA_SCREEN_WIDTH / (float)GRAFIKA_SCREEN_HEIGHT, 0.1f, 100.0f, state.proj);
 
-    state.obj = obj_load("res/cube.obj");
-    // state.obj = obj_load("plane.obj");
-    // state.obj = obj_load("bunny.obj");
-    // state.obj = obj_load("../res/Dog House/Doghouse.obj");
+    // state.obj = obj_load("res/cube.obj");
+    //  state.obj = obj_load("plane.obj");
+    //  state.obj = obj_load("bunny.obj");
+    state.obj = obj_load("res/Dog House/Doghouse.obj");
 
-    // state.tex = tex_load("../res/Dog House/Doghouse_PBR_BaseColor.png", true);
-    state.tex = tex_load("res/wood.png", false);
-    //  state.tex = tex_load("metal.png", false);
+    state.tex = tex_load("res/Dog House/Doghouse_PBR_BaseColor.png", true);
+    // state.tex = tex_load("res/wood.png", false);
+    //   state.tex = tex_load("metal.png", false);
 
     // Calculate model height
     BoundingBox_t bbox    = state.obj.bbox;
@@ -438,6 +441,10 @@ int main(int argc, char *argv[])
 
     float rotationAngleX = 0.0f, rotationAngleY = 0.0f;
     float scrollAmount = -2.0f;
+
+    timer_t frame_timer            = Timer_Init_Start();
+    int     frame_counter          = 0;
+    double  frame_time_accumulated = 0.0;
 
     while (!rend.quit)
     {
@@ -465,7 +472,6 @@ int main(int argc, char *argv[])
                 //     scrollAmount = -2.0f;
             }
         }
-        // printf("tranz : %f\n", transz);
 
         vec3 eye    = {0.0f, 0.0f, scrollAmount};
         vec3 target = {0.0f, 0.0f, -1.0f};
@@ -486,6 +492,25 @@ int main(int argc, char *argv[])
         grafika_clear();
         update();
         grafika_present();
+
+        Timer_Update(&frame_timer);
+
+        if (frame_counter == 64)
+        {
+            const double avg_time = frame_time_accumulated / frame_counter;
+
+            char buff[16] = {0};
+            sprintf_s(buff, sizeof(buff), "%0.2fms", avg_time);
+            SDL_SetWindowTitle(rend.window, buff);
+
+            frame_counter          = 0;
+            frame_time_accumulated = 0.0;
+        }
+        else
+        {
+            frame_time_accumulated += Timer_Get_Elapsed_MS(&frame_timer);
+            frame_counter++;
+        }
     }
 
     obj_destroy(&state.obj);

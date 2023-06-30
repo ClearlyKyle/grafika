@@ -1,7 +1,7 @@
 # Build settings
 CC=gcc
 
-CFLAGS=-g -Wall -mconsole
+CFLAGS=-g -Wall -mconsole -fopenmp
 
 # pkg-config Library names
 LIB_NAMES := sdl2
@@ -40,11 +40,12 @@ $(OUTPUT_DIR)/%.o: $(SRC_DIR)/%.c | $(OUTPUT_DIR)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # Phony target to run the executable
-run_main: build_main clean
+run_main: build_main
 	$(OUTPUT_DIR)/$(EXEC)
 
 .PHONY: build_main
-build_main: clean $(OUTPUT_DIR)/$(EXEC)
+build_main: $(OUTPUT_DIR)/$(EXEC)
+	@echo $(SRCS)
 	@echo [BUILD] Building complete!
 
 .PHONY: clean
