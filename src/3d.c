@@ -3,7 +3,6 @@
 #include <math.h>
 
 #include "grafika.h"
-#include "input.h"
 #include "tex.h"
 #include "obj.h"
 
@@ -252,6 +251,8 @@ void drawtriangle(const triangle t, const vec3 texcoords[3], const mat4 MVP)
     vec3 screenspace[3] = {0};
     vec4 clipspace[3]   = {0};
     vec3 ndc[3]         = {0};
+
+    // convert to clip space
     for (int i = 0; i < 3; ++i)
     {
         //  clip space position
@@ -262,7 +263,7 @@ void drawtriangle(const triangle t, const vec3 texcoords[3], const mat4 MVP)
         const float y = fabsf(clipspace[i][1]);
         const float w = fabsf(clipspace[i][3]);
 
-        if ((-w <= x && x <= w) && (-w <= y && y <= w))
+        if ((-w <= x && x <= w) || (-w <= y && y <= w))
             continue;
         else
             return;
@@ -363,10 +364,6 @@ void drawtriangle(const triangle t, const vec3 texcoords[3], const mat4 MVP)
             unsigned char *texcolour   = state.tex.data + (((int)u + state.tex.w * (int)v) * state.tex.bpp);
             uint32_t       pixelcolour = (0xFF << 24) + (texcolour[2] << 16) + (texcolour[1] << 8) + (texcolour[0] << 0);
 
-            // int red = (int)(255.0f * (w0 * ac[0] + w1 * bc[0] + w2 * cc[0]) * cf);
-            // int gre = (int)(255.0f * (w0 * ac[1] + w1 * bc[1] + w2 * cc[1]) * cf);
-            // int blu = (int)(255.0f * (w0 * ac[2] + w1 * bc[2] + w2 * cc[2]) * cf);
-
             // Draw pixel
             // 0xFF 00 00 00
             // uint32_t pixelcolour = (0xFF << 24) + (red << 16) + (blu << 8) + (gre << 0);
@@ -415,18 +412,23 @@ int main(int argc, char *argv[])
 
     m4perspective(DEG2RAD(60.0f), (float)GRAFIKA_SCREEN_WIDTH / (float)GRAFIKA_SCREEN_HEIGHT, 0.1f, 100.0f, state.proj);
 
-    state.obj = obj_load("cube.obj");
+    state.obj = obj_load("res/cube.obj");
     // state.obj = obj_load("plane.obj");
     // state.obj = obj_load("bunny.obj");
+    // state.obj = obj_load("../res/Dog House/Doghouse.obj");
 
-    state.tex = tex_load("wood.png", false);
-    // state.tex = tex_load("metal.png", false);
+    // state.tex = tex_load("../res/Dog House/Doghouse_PBR_BaseColor.png", true);
+    state.tex = tex_load("res/wood.png", false);
+    //  state.tex = tex_load("metal.png", false);
 
     // Calculate model height
-    BoundingBox_t bbox   = state.obj.bbox;
-    float         height = bbox.min[1] + bbox.max[1];
+    BoundingBox_t bbox    = state.obj.bbox;
+    float         centerx = -(bbox.min[0] + bbox.max[0]) * 0.5f;
+    float         centery = -(bbox.min[1] + bbox.max[1]) * 0.5f;
+    float         centerz = -(bbox.min[2] + bbox.max[2]) * 0.5f;
 
-    float transz = -6.5f;
+    mat4 trans;
+    m4transmake(centerx, centery, centerz, trans);
 
     // Scale model height to 1
     float model_scale = 1.0f / (bbox.max[1] - bbox.min[1]);
@@ -442,9 +444,6 @@ int main(int argc, char *argv[])
         for (int i = 0; i < GRAFIKA_SCREEN_WIDTH * GRAFIKA_SCREEN_HEIGHT; ++i)
             zbuffer[i] = 1.0f;
 
-        // input_update();
-        int deltaX = 0, deltaY = 0;
-
         SDL_Event event;
         while (SDL_PollEvent(&event))
         {
@@ -452,26 +451,18 @@ int main(int argc, char *argv[])
             {
                 rend.quit = true;
             }
-            else if (SDL_KEYDOWN == event.type && SDL_SCANCODE_UP == event.key.keysym.scancode)
-            {
-                transz += 0.1f;
-            }
-            else if (SDL_KEYDOWN == event.type && SDL_SCANCODE_DOWN == event.key.keysym.scancode)
-            {
-                transz -= 0.1f;
-            }
 
             if (event.type == SDL_MOUSEMOTION && (event.motion.state & SDL_BUTTON(SDL_BUTTON_LEFT)))
             {
-                deltaX = event.motion.xrel; // Change in mouse X position
-                deltaY = event.motion.yrel; // Change in mouse Y position
+                rotationAngleY += event.motion.xrel * 0.4f;
+                rotationAngleX += event.motion.yrel * 0.4f;
             }
 
             if (event.type == SDL_MOUSEWHEEL)
             {
                 scrollAmount += (float)event.wheel.y;
-                if (scrollAmount > -2.0f)
-                    scrollAmount = -2.0f;
+                // if (scrollAmount > -2.0f)
+                //     scrollAmount = -2.0f;
             }
         }
         // printf("tranz : %f\n", transz);
@@ -481,15 +472,6 @@ int main(int argc, char *argv[])
         vec3 up     = {0.0f, -1.0f, 0.0f};
         m4lookat(eye, target, up, state.view);
 
-        mat4 trans;
-        m4transmake(0.0f, -(height * 0.5f), 0.0f, trans);
-
-        if (deltaX != 0 && deltaY != 0)
-        { // Mouse based rotation
-            rotationAngleX += deltaY * 0.4f;
-            rotationAngleY += deltaX * 0.4f; // 0.1f = sensitivity
-        }
-
         // Create rotation matrices
         mat4 rotx, roty;
         rotateMatrix(rotx, DEG2RAD(rotationAngleX), 'x');
@@ -498,8 +480,8 @@ int main(int argc, char *argv[])
         // Combine rotations by multiplying matrices (SRT)
         mat4 rot;
         m4mulm4(rotx, roty, rot);
-        m4mulm4(rot, scale, state.model);
-        m4mulm4(trans, state.model, state.model);
+        m4mulm4(rot, trans, state.model);
+        m4mulm4(scale, state.model, state.model);
 
         grafika_clear();
         update();

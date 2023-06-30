@@ -4,18 +4,13 @@
 #include <stdbool.h>
 #include <assert.h>
 
+#include "utils.h"
+
 #include "SDL2/SDL.h"
 
 #define GRAFIKA_SCREEN_WIDTH  256
 #define GRAFIKA_SCREEN_HEIGHT 256
 #define GRAFIKA_BPP           4
-
-#define ASSERT(_e, ...)                           \
-    if (!(_e))                                    \
-    {                                             \
-        fprintf(stderr, "[ASSERT] " __VA_ARGS__); \
-        assert(_e);                               \
-    }
 
 typedef struct renderer
 {

@@ -6,6 +6,28 @@
 #include <assert.h>
 #include <string.h>
 
+#include "utils.h"
+
+#define MAX_CHAR_LINE_BUFFER 256
+
+typedef struct material
+{
+    char *newmtl;
+    float Ns;
+    float Ka[3];
+    float Kd[3];
+    float Ks[3];
+    float Ke[3];
+    float Ni;
+    float d;
+    int   illum;
+
+    char *map_Bump;
+    char *map_Kd;
+    char *map_Ns;
+    char *refl;
+} material_t;
+
 typedef struct vertindices
 {
     int v_idx, vn_idx, vt_idx;
@@ -33,13 +55,64 @@ typedef struct obj
     vertindices_t *indices; // Index values for 1 vertex
 } obj_t;
 
+static char *_read_string_until(char *inputString, const char stopChar)
+{
+    // TODO : this should take in some kind of length
+    assert(inputString);
+
+    while (*inputString != '\0' && *inputString != stopChar)
+        inputString++;
+
+    return inputString;
+}
+
+static void removeNewline(char *str)
+{
+    assert(str);
+
+    const size_t length = strcspn(str, "\n"); // TODO : remove this function call
+
+    if (str[length] == '\n')
+        str[length] = '\0'; // Replace newline with null-termination
+}
+
+static void _material_file(char *line)
+{
+    char *material_file_path = _read_string_until(line, ' ');
+
+    removeNewline(++material_file_path); // NOTE : this might be unsafe
+
+    printf("material file path : |%s|\n", material_file_path);
+
+    FILE *fp = NULL;
+    fopen_s(&fp, material_file_path, "r");
+
+    char linebuffer[256]; // Adjust the size
+    while (fgets(linebuffer, sizeof(linebuffer), fp) != NULL)
+    {
+        if (strncmp(linebuffer, "map_Bump", 8) == 0)
+        {
+            char *bump_path = _read_string_until(linebuffer, ' ');
+            removeNewline(++bump_path); // NOTE : this might be unsafe
+            printf("Bump map path: |%s|\n", bump_path);
+        }
+        else if (strncmp(linebuffer, "map_Kd", 6) == 0)
+        {
+            char *bump_path = _read_string_until(linebuffer, ' ');
+            removeNewline(++bump_path); // NOTE : this might be unsafe
+            printf("Bump map path: |%s|\n", bump_path);
+        }
+    }
+    fclose(fp);
+}
+
 obj_t obj_load(const char *filename)
 {
     FILE *fp = NULL;
     fopen_s(&fp, filename, "r");
-    assert(fp);
+    ASSERT(fp, "Error with opening object file : '%s'\n", filename);
 
-    char linebuffer[256]; // Adjust the size
+    char linebuffer[MAX_CHAR_LINE_BUFFER]; // Adjust the size
 
     int posCount    = 0;
     int texCount    = 0;
@@ -48,6 +121,9 @@ obj_t obj_load(const char *filename)
     int vertCount   = 0;
     while (fgets(linebuffer, sizeof(linebuffer), fp) != NULL)
     {
+        if (linebuffer[0] == '#')
+            continue;
+
         if (linebuffer[0] == 'v' && linebuffer[1] == 'n')
             normalCount++;
         else if (linebuffer[0] == 'v' && linebuffer[1] == 't')
@@ -102,6 +178,9 @@ obj_t obj_load(const char *filename)
     int nrm_idx = 0, pos_idx = 0, tex_idx = 0, indi_idx = 0;
     while (fgets(linebuffer, sizeof(linebuffer), fp) != NULL)
     {
+        if (linebuffer[0] == '#')
+            continue;
+
         if (linebuffer[0] == 'v' && linebuffer[1] == 'n')
         {
             sscanf(linebuffer, "vn %f %f %f",
@@ -194,6 +273,11 @@ obj_t obj_load(const char *filename)
             }
             indi_idx += 3;
         }
+        if (linebuffer[0] == 'm' && linebuffer[1] == 't') // mtllib
+        {
+            // Parse material file
+            _material_file(linebuffer);
+        }
     }
 
     obj.bbox = bbox;
@@ -245,7 +329,6 @@ obj_t obj_load(const char *filename)
 #endif
 
     fclose(fp);
-
     return obj;
 }
 

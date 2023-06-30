@@ -3,8 +3,10 @@
 
 #include <stdbool.h>
 
+#include "utils.h"
+
 #define STB_IMAGE_IMPLEMENTATION
-#include "./deps/stb_image.h"
+#include "stb_image.h"
 
 typedef struct tex
 {
@@ -19,7 +21,7 @@ tex_t tex_load(const char *file_path, bool flip)
     stbi_set_flip_vertically_on_load(flip ? 1 : 0);
 
     t.data = stbi_load(file_path, &t.w, &t.h, &t.bpp, 0);
-    assert(t.data);
+    ASSERT(t.data, "Failed to open file : '%s'\n", file_path);
 
     return t;
 }
