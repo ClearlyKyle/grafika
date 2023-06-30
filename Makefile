@@ -3,48 +3,51 @@ CC=gcc
 
 CFLAGS=-g -Wall -mconsole
 
-# SDL options
-CC_SDL=$(shell pkg-config --cflags --libs sdl2)
+# pkg-config Library names
+LIB_NAMES := sdl2
 
-SOURCE = 3d.c
-EXEC = 3d
+# Library flags and linking
+CFLAGS += $(shell pkg-config --cflags $(LIB_NAMES))
+LDFLAGS := $(shell pkg-config --libs $(LIB_NAMES))
 
-OBJ_TEST_SRC = objtest.c obj.h
+# Executable name
+EXEC := ModelViewer
 
-all:build
+INCLUDE_FOLDER = src deps
+CFLAGS += $(addprefix -I, $(INCLUDE_FOLDER))
 
-build:
-	@echo [BUILD] Building project...
-	$(CC) $(CFLAGS) $(SOURCE) -o $(EXEC) $(CC_SDL)
+# Specify the output directory
+OUTPUT_DIR := bin
+
+# Source directory
+SRC_DIR := src
+
+# List of source files
+SRCS := $(wildcard $(SRC_DIR)/*.c $(SRC_DIR)/*.h)
+
+# Generate object file names based on source file names
+OBJS := $(patsubst $(SRC_DIR)/%.c,$(OUTPUT_DIR)/%.o,$(SRCS))
+
+# Default target
+all: $(OUTPUT_DIR)/$(EXEC)
+
+# Rule to build the executable
+$(OUTPUT_DIR)/$(EXEC): $(OBJS)
+	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
+
+# Rule to build object files
+$(OUTPUT_DIR)/%.o: $(SRC_DIR)/%.c | $(OUTPUT_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Phony target to run the executable
+run_main: build_main clean
+	$(OUTPUT_DIR)/$(EXEC)
+
+.PHONY: build_main
+build_main: clean $(OUTPUT_DIR)/$(EXEC)
 	@echo [BUILD] Building complete!
 
-build_run:build
-	@echo [RUN] Building project...
-	$(EXEC)
-	@echo [RUN] Finished!
-
-run:build
-	@echo [RUN] Running...
-	./$(EXEC)
-
+.PHONY: clean
 clean:
-	@echo [CLEAN] Cleaning project...
-	-del -fR *.exe *.o
+	rm -f $(OUTPUT_DIR)/*.exe $(OUTPUT_DIR)/*.o
 	@echo [CLEAN] Clean completed!
-
-3dbuild:
-	@echo [BUILD] Building 3d project...
-	$(CC) $(CFLAGS) $(SOURCE) -o $(EXEC) $(CC_SDL)
-	@echo [BUILD] Building complete!
-
-objbuild:
-	@echo [BUILD] Building obj test...
-	$(CC) $(CFLAGS) $(OBJ_TEST_SRC) -o objtest $(CC_SDL)
-
-objtest:objbuild
-	@echo [RUN]
-	./objtest.exe
-	
-3d:3dbuild
-	@echo [RUN] Running...
-	./$(EXEC)
