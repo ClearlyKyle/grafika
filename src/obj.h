@@ -106,6 +106,58 @@ static void _material_file(char *line)
     fclose(fp);
 }
 
+static void parse_f_line(char *fline, const int num_vertex_values, vertindices_t index_data[6])
+{
+    int   vertex_index, texture_index, normal_index;
+    char *current_char = fline + 2; // Skip the leading 'f' character and whitespace
+
+    int collected_indices = 0;
+
+    while (*current_char != '\0')
+    {
+        vertex_index = atoi(current_char); // Extract vertex index
+
+        // Find the position of the next '/' character
+        while (*current_char != '/' && *current_char != ' ' && *current_char != '\0')
+            current_char++;
+
+        if (*current_char == '\0')
+            break; // Reached the end of the line
+
+        current_char++; // Move to the next character after '/'
+
+        // Extract texture index
+        texture_index = atoi(current_char);
+
+        // Find the position of the next '/' character
+        while (*current_char != '/' && *current_char != ' ' && *current_char != '\0')
+            current_char++;
+
+        if (*current_char == '\0')
+            break; // Reached the end of the line
+
+        current_char++; // Move to the next character after '/'
+
+        // Extract normal index
+        normal_index = atoi(current_char);
+
+        // Find the position of the next space or null character
+        while (*current_char != ' ' && *current_char != '\0')
+            current_char++;
+
+        if (*current_char == '\0')
+            break; // Reached the end of the line
+
+        current_char++; // Move to the next character after the space
+
+        // Print the extracted values
+        index_data[collected_indices].v_idx  = vertex_index - 1;
+        index_data[collected_indices].vt_idx = texture_index - 1;
+        index_data[collected_indices].vn_idx = normal_index - 1;
+        collected_indices++;
+    }
+}
+
 obj_t obj_load(const char *filename)
 {
     FILE *fp = NULL;
@@ -229,41 +281,24 @@ obj_t obj_load(const char *filename)
             }
 
             // TODO : Read up to a space and save values
-            if (space_counter == 4)
+            if (space_counter >= 4)
             {
-                int result = sscanf(linebuffer, "f %d/%d/%d %d/%d/%d %d/%d/%d %d/%d/%d",
-                                    &fv[0], &fvt[0], &fvn[0],
-                                    &fv[1], &fvt[1], &fvn[1],
-                                    &fv[2], &fvt[2], &fvn[2],
-                                    &fv[3], &fvt[3], &fvn[3]);
+                assert(space_counter == 4);
 
-                if (result != 12)
-                {
-                    result = sscanf(linebuffer, "f %d//%d %d//%d %d//%d %d//%d",
-                                    &fv[0], &fvn[0],
-                                    &fv[1], &fvn[1],
-                                    &fv[2], &fvn[2],
-                                    &fv[3], &fvn[3]);
-
-                    assert(result != 1);
-                }
+                vertindices_t face_data[6] = {0};
+                parse_f_line(linebuffer, space_counter, face_data);
 
                 vertindices_t *fptr = &obj.indices[indi_idx + 0];
-                fptr->v_idx         = fv[0] - 1;
-                fptr->vt_idx        = fvt[0] - 1;
-                fptr->vn_idx        = fvn[0] - 1;
 
-                fptr++;
-                fptr->v_idx  = fv[2] - 1;
-                fptr->vt_idx = fvt[2] - 1;
-                fptr->vn_idx = fvn[2] - 1;
+                fptr[0] = face_data[0];
+                fptr[1] = face_data[1];
+                fptr[2] = face_data[2];
 
-                fptr++;
-                fptr->v_idx  = fv[3] - 1;
-                fptr->vt_idx = fvt[3] - 1;
-                fptr->vn_idx = fvn[3] - 1;
+                fptr[3] = face_data[0];
+                fptr[4] = face_data[1];
+                fptr[5] = face_data[3];
 
-                indi_idx += 3;
+                indi_idx += 6;
             }
             else if (space_counter == 3)
             {
