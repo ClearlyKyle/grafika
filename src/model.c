@@ -418,10 +418,11 @@ int main(int argc, char *argv[])
     // state.obj = obj_load("res/cube.obj");
     //  state.obj = obj_load("plane.obj");
     //  state.obj = obj_load("bunny.obj");
-    state.obj = obj_load("res/Dog House/Doghouse.obj");
+    // state.obj = obj_load("res/Dog House/Doghouse.obj");
+    state.obj = obj_load("res/Lorry/lorry.obj");
 
-    state.tex = tex_load("res/Dog House/Doghouse_PBR_BaseColor.png", true);
-    // state.tex = tex_load("res/wood.png", false);
+    // state.tex = tex_load("res/Dog House/Doghouse_PBR_BaseColor.png", true);
+    state.tex = tex_load("res/wood.png", false);
     //   state.tex = tex_load("metal.png", false);
 
     // Calculate model height
@@ -442,9 +443,11 @@ int main(int argc, char *argv[])
     float rotationAngleX = 0.0f, rotationAngleY = 0.0f;
     float scrollAmount = -2.0f;
 
-    timer_t frame_timer            = Timer_Init_Start();
-    int     frame_counter          = 0;
-    double  frame_time_accumulated = 0.0;
+    timer_t frame_timer = {0};
+    TIMER_START(frame_timer);
+
+    int    frame_counter          = 0;
+    double frame_time_accumulated = 0.0;
 
     while (!rend.quit)
     {
@@ -468,8 +471,8 @@ int main(int argc, char *argv[])
             if (event.type == SDL_MOUSEWHEEL)
             {
                 scrollAmount += (float)event.wheel.y;
-                // if (scrollAmount > -2.0f)
-                //     scrollAmount = -2.0f;
+                if (scrollAmount > -1.5f)
+                    scrollAmount = -1.5f;
             }
         }
 
@@ -493,7 +496,7 @@ int main(int argc, char *argv[])
         update();
         grafika_present();
 
-        Timer_Update(&frame_timer);
+        TIMER_UPDATE(frame_timer);
 
         if (frame_counter == 64)
         {
@@ -508,7 +511,7 @@ int main(int argc, char *argv[])
         }
         else
         {
-            frame_time_accumulated += Timer_Get_Elapsed_MS(&frame_timer);
+            frame_time_accumulated += TIMER_ELAPSED_MS(frame_timer);
             frame_counter++;
         }
     }
