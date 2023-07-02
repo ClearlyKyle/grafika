@@ -217,7 +217,7 @@ obj_t obj_load(const char *filename)
         }
         else if (linebuffer[0] == 'f')
         {
-            int fv[4], fvt[4], fvn[4];
+            int fv[4] = {0}, fvt[4] = {0}, fvn[4] = {0};
 
             int space_counter = 0;
 
@@ -236,7 +236,17 @@ obj_t obj_load(const char *filename)
                                     &fv[1], &fvt[1], &fvn[1],
                                     &fv[2], &fvt[2], &fvn[2],
                                     &fv[3], &fvt[3], &fvn[3]);
-                assert(result == 12);
+
+                if (result != 12)
+                {
+                    result = sscanf(linebuffer, "f %d//%d %d//%d %d//%d %d//%d",
+                                    &fv[0], &fvn[0],
+                                    &fv[1], &fvn[1],
+                                    &fv[2], &fvn[2],
+                                    &fv[3], &fvn[3]);
+
+                    assert(result != 1);
+                }
 
                 vertindices_t *fptr = &obj.indices[indi_idx + 0];
                 fptr->v_idx         = fv[0] - 1;
@@ -264,6 +274,7 @@ obj_t obj_load(const char *filename)
                 assert(result == 9);
             }
 
+            // NOTE : We could remove this copy here
             for (size_t f = 0; f < 3; f++) // Load in the first 3 values: f 0/0/0 1/1/1 2/2/2
             {
                 vertindices_t *fptr = &obj.indices[indi_idx + f];
