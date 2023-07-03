@@ -144,26 +144,26 @@ static void parse_f_line(char *fline, const int num_vertex_values, vertindices_t
     {
         vertex_index = atoi(current_char); // Extract vertex index
 
-        // Find the position of the next '/' character
-        while (*current_char != '/' && *current_char != ' ' && *current_char != '\0')
+        // Find the position of the next /
+        while (*current_char != '/')
+        {
             current_char++;
-
-        if (*current_char == '\0')
-            break; // Reached the end of the line
-
-        current_char++; // Move to the next character after '/'
+            if (*current_char == '\0' || *current_char == '\n')
+                return; // Reached the end of the line
+        }
+        current_char++; // Move to the next character after the space
 
         // Extract texture index
         texture_index = atoi(current_char);
 
-        // Find the position of the next '/' character
-        while (*current_char != '/' && *current_char != ' ' && *current_char != '\0')
+        // Find the position of the next /
+        while (*current_char != '/')
+        {
             current_char++;
-
-        if (*current_char == '\0')
-            break; // Reached the end of the line
-
-        current_char++; // Move to the next character after '/'
+            if (*current_char == '\0' || *current_char == '\n')
+                return; // Reached the end of the line
+        }
+        current_char++; // Move to the next character after the space
 
         // Extract normal index
         normal_index = atoi(current_char);
@@ -175,13 +175,13 @@ static void parse_f_line(char *fline, const int num_vertex_values, vertindices_t
         collected_indices++;
 
         // Find the position of the next space or null character
-        while (*current_char != ' ' && *current_char != '\0')
+        while (*current_char != ' ')
+        {
             current_char++;
-
+            if (*current_char == '\0' || *current_char == '\n')
+                return; // Reached the end of the line
+        }
         current_char++; // Move to the next character after the space
-
-        if (*current_char == '\0')
-            break; // Reached the end of the line
     }
     // printf("%s", fline);
 }
@@ -353,7 +353,7 @@ obj_t obj_load(const char *filename)
 
     obj.bbox = bbox;
 
-#if 1 // DEBUG
+#if 0 // DEBUG
     printf("poss : %d\n", posCount);
     printf("texs : %d\n", texCount);
     printf("norms: %d\n", normalCount);
