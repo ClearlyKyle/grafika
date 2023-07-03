@@ -33,6 +33,11 @@ typedef struct vertindices
     int v_idx, vn_idx, vt_idx;
 } vertindices_t;
 
+typedef struct shape
+{
+    int mat_idx, idx_offset, idx_end; // idx_offset is the offset into the 'indices' array
+} shape_t;
+
 typedef struct BoundingBox
 {
     float min[3], max[3]; // x, y, z
@@ -47,6 +52,9 @@ typedef struct obj
     size_t num_verts;  // How many individual vertices
 
     BoundingBox_t bbox;
+
+    int         num_of_mats;
+    material_t *mats;
 
     float *pos;
     float *norms;
@@ -76,7 +84,7 @@ static void removeNewline(char *str)
         str[length] = '\0'; // Replace newline with null-termination
 }
 
-static void _material_file(char *line)
+static void _material_file(char *line, material_t **mat_data, int *num_of_mats)
 {
     char *material_file_path = _read_string_until(line, ' ');
 
@@ -87,14 +95,31 @@ static void _material_file(char *line)
     FILE *fp = NULL;
     fopen_s(&fp, material_file_path, "r");
 
+    material_t *curr_mat    = NULL;
+    int         mat_counter = 0;
+
     char linebuffer[256]; // Adjust the size
     while (fgets(linebuffer, sizeof(linebuffer), fp) != NULL)
     {
+        // Check for a new material
+        if (strncmp(linebuffer, "newmtl", 6) == 0)
+        {
+            // Create new material struct
+            mat_counter++;
+            *mat_data = realloc(*mat_data, sizeof(material_t) * mat_counter);
+
+            curr_mat = mat_data[mat_counter - 1];
+        }
         if (strncmp(linebuffer, "map_Bump", 8) == 0)
         {
             char *bump_path = _read_string_until(linebuffer, ' ');
             removeNewline(++bump_path); // NOTE : this might be unsafe
             printf("Bump map path: |%s|\n", bump_path);
+
+            const size_t str_len = strlen(bump_path);
+            curr_mat->map_Bump   = malloc(sizeof(char) * str_len);
+
+            strncpy_s(curr_mat->map_Bump, str_len, bump_path, str_len);
         }
         else if (strncmp(linebuffer, "map_Kd", 6) == 0)
         {
@@ -103,10 +128,12 @@ static void _material_file(char *line)
             printf("Bump map path: |%s|\n", bump_path);
         }
     }
+
+    *num_of_mats = mat_counter;
     fclose(fp);
 }
 
-static void parse_f_line(char *fline, const int num_vertex_values, vertindices_t index_data[6])
+static void parse_f_line(char *fline, const int num_vertex_values, vertindices_t *index_data)
 {
     int   vertex_index, texture_index, normal_index;
     char *current_char = fline + 2; // Skip the leading 'f' character and whitespace
@@ -141,21 +168,22 @@ static void parse_f_line(char *fline, const int num_vertex_values, vertindices_t
         // Extract normal index
         normal_index = atoi(current_char);
 
-        // Find the position of the next space or null character
-        while (*current_char != ' ' && *current_char != '\0')
-            current_char++;
-
-        if (*current_char == '\0')
-            break; // Reached the end of the line
-
-        current_char++; // Move to the next character after the space
-
         // Print the extracted values
         index_data[collected_indices].v_idx  = vertex_index - 1;
         index_data[collected_indices].vt_idx = texture_index - 1;
         index_data[collected_indices].vn_idx = normal_index - 1;
         collected_indices++;
+
+        // Find the position of the next space or null character
+        while (*current_char != ' ' && *current_char != '\0')
+            current_char++;
+
+        current_char++; // Move to the next character after the space
+
+        if (*current_char == '\0')
+            break; // Reached the end of the line
     }
+    // printf("%s", fline);
 }
 
 obj_t obj_load(const char *filename)
@@ -269,8 +297,6 @@ obj_t obj_load(const char *filename)
         }
         else if (linebuffer[0] == 'f')
         {
-            int fv[4] = {0}, fvt[4] = {0}, fvn[4] = {0};
-
             int space_counter = 0;
 
             // Count the number of spaces in the line
@@ -285,50 +311,49 @@ obj_t obj_load(const char *filename)
             {
                 assert(space_counter == 4);
 
-                vertindices_t face_data[6] = {0};
+                vertindices_t face_data[4] = {0};
                 parse_f_line(linebuffer, space_counter, face_data);
 
-                vertindices_t *fptr = &obj.indices[indi_idx + 0];
+                vertindices_t *fptr = &obj.indices[indi_idx];
 
                 fptr[0] = face_data[0];
                 fptr[1] = face_data[1];
                 fptr[2] = face_data[2];
 
                 fptr[3] = face_data[0];
-                fptr[4] = face_data[1];
+                fptr[4] = face_data[2];
                 fptr[5] = face_data[3];
+
+                // f 544/1/1 536/2/1 428/3/1 426/4/1
 
                 indi_idx += 6;
             }
             else if (space_counter == 3)
             {
-                int result = sscanf(linebuffer, "f %d/%d/%d %d/%d/%d %d/%d/%d",
-                                    &fv[0], &fvt[0], &fvn[0],
-                                    &fv[1], &fvt[1], &fvn[1],
-                                    &fv[2], &fvt[2], &fvn[2]);
-                assert(result == 9);
-            }
+                assert(space_counter == 3);
 
-            // NOTE : We could remove this copy here
-            for (size_t f = 0; f < 3; f++) // Load in the first 3 values: f 0/0/0 1/1/1 2/2/2
-            {
-                vertindices_t *fptr = &obj.indices[indi_idx + f];
-                fptr->v_idx         = fv[f] - 1;
-                fptr->vt_idx        = fvt[f] - 1;
-                fptr->vn_idx        = fvn[f] - 1;
+                vertindices_t face_data[3] = {0};
+                parse_f_line(linebuffer, space_counter, face_data);
+
+                vertindices_t *fptr = &obj.indices[indi_idx];
+
+                fptr[0] = face_data[0];
+                fptr[1] = face_data[1];
+                fptr[2] = face_data[2];
+
+                indi_idx += 3;
             }
-            indi_idx += 3;
         }
         if (linebuffer[0] == 'm' && linebuffer[1] == 't') // mtllib
         {
             // Parse material file
-            _material_file(linebuffer);
+            _material_file(linebuffer, &obj.mats, &obj.num_of_mats);
         }
     }
 
     obj.bbox = bbox;
 
-#if 0 // DEBUG
+#if 1 // DEBUG
     printf("poss : %d\n", posCount);
     printf("texs : %d\n", texCount);
     printf("norms: %d\n", normalCount);
@@ -339,39 +364,45 @@ obj_t obj_load(const char *filename)
            bbox.min[0], bbox.min[1], bbox.min[2],
            bbox.max[0], bbox.max[1], bbox.max[2]);
 
-    for (size_t i = 0; i < obj.num_pos; i++)
+    printf("mats : %d\n", obj.num_of_mats);
+    for (int i = 0; i < obj.num_of_mats; i++)
     {
-        const int index = i * 3;
-        printf("v %f, %f, %f\n",
-               obj.pos[index + 0],
-               obj.pos[index + 1],
-               obj.pos[index + 2]);
+        printf("bump : %s\n", obj.mats[i].map_Bump);
     }
 
-    for (size_t i = 0; i < obj.num_norms; i++)
-    {
-        const int index = i * 3;
-        printf("vn %f, %f, %f\n",
-               obj.norms[index + 0],
-               obj.norms[index + 1],
-               obj.norms[index + 2]);
-    }
+    // for (size_t i = 0; i < obj.num_pos; i++)
+    //{
+    //     const int index = i * 3;
+    //     printf("v %f, %f, %f\n",
+    //            obj.pos[index + 0],
+    //            obj.pos[index + 1],
+    //            obj.pos[index + 2]);
+    // }
 
-    for (size_t i = 0; i < obj.num_texs; i++)
-    {
-        const int index = i * 2;
-        printf("vt %f, %f\n",
-               obj.texs[index + 0],
-               obj.texs[index + 1]);
-    }
+    // for (size_t i = 0; i < obj.num_norms; i++)
+    //{
+    //     const int index = i * 3;
+    //     printf("vn %f, %f, %f\n",
+    //            obj.norms[index + 0],
+    //            obj.norms[index + 1],
+    //            obj.norms[index + 2]);
+    // }
 
-    for (size_t i = 0; i < obj.num_verts; i++)
-    {
-        printf("%d, %d, %d\n",
-               obj.indices[i].v_idx,
-               obj.indices[i].vt_idx,
-               obj.indices[i].vn_idx);
-    }
+    // for (size_t i = 0; i < obj.num_texs; i++)
+    //{
+    //     const int index = i * 2;
+    //     printf("vt %f, %f\n",
+    //            obj.texs[index + 0],
+    //            obj.texs[index + 1]);
+    // }
+
+    // for (size_t i = 0; i < obj.num_verts; i++)
+    //{
+    //     printf("%d, %d, %d\n",
+    //            obj.indices[i].v_idx,
+    //            obj.indices[i].vt_idx,
+    //            obj.indices[i].vn_idx);
+    // }
 #endif
 
     fclose(fp);
@@ -391,6 +422,8 @@ void obj_destroy(obj_t *obj)
         free(obj->texs);
     if (obj->indices)
         free(obj->indices);
+    if (obj->mats)
+        free(obj->mats);
 
     *obj = (obj_t){0};
 
