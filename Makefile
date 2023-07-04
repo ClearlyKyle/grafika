@@ -1,7 +1,16 @@
-# Build settings
-CC=gcc
+# Make sure there are no spaces after setting variables
+# Check for correct indentation!
 
-CFLAGS=-g -Wall -mconsole -fopenmp
+# Build settings
+CC = gcc
+
+CFLAGS := -std=gnu11 -g -Wall -mconsole -fopenmp
+
+EXEC 		:= ModelViewer#
+OUTPUT_DIR 	:= bin#
+SRC_DIR 	:= src#
+
+INC_DIRS 	:= src deps#
 
 # pkg-config Library names
 LIB_NAMES := sdl2
@@ -10,43 +19,47 @@ LIB_NAMES := sdl2
 CFLAGS += $(shell pkg-config --cflags $(LIB_NAMES))
 LDFLAGS := $(shell pkg-config --libs $(LIB_NAMES))
 
-# Executable name
-EXEC := ModelViewer
+# Add the include directories
+CFLAGS += $(addprefix -I, $(INC_DIRS))
 
-INCLUDE_FOLDER = src deps
-CFLAGS += $(addprefix -I, $(INCLUDE_FOLDER))
-
-# Specify the output directory
-OUTPUT_DIR := bin
-
-# Source directory
-SRC_DIR := src
-
-# List of source files
-SRCS := $(wildcard $(SRC_DIR)/*.c $(SRC_DIR)/*.h)
+# List of source files, all of the .c files
+SOURCES := $(wildcard $(SRC_DIR)/*.c)
 
 # Generate object file names based on source file names
-OBJS := $(patsubst $(SRC_DIR)/%.c,$(OUTPUT_DIR)/%.o,$(SRCS))
+# Convert source files to object file names
+# put the % part of the first section, into the % part of the second section
+# using the data from the last section
+OBJECTS := $(patsubst $(SRC_DIR)/%.c,$(OUTPUT_DIR)/%.o,$(SOURCES))
 
 # Default target
 all: $(OUTPUT_DIR)/$(EXEC)
 
 # Rule to build the executable
-$(OUTPUT_DIR)/$(EXEC): $(OBJS)
+$(OUTPUT_DIR)/$(EXEC): $(OBJECTS)
+	@echo Building Exe : $^
 	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
 
-# Rule to build object files
-$(OUTPUT_DIR)/%.o: $(SRC_DIR)/%.c | $(OUTPUT_DIR)
+# Build the object files
+$(OBJECTS): $(SOURCES)
+	@echo Building Oject : $<
 	$(CC) $(CFLAGS) -c $< -o $@
 
-# Phony target to run the executable
-run_main: build_main
-	$(OUTPUT_DIR)/$(EXEC)
 
-.PHONY: build_main
-build_main: $(OUTPUT_DIR)/$(EXEC)
-	@echo $(SRCS)
-	@echo [BUILD] Building complete!
+debug_vars:
+	@echo $(OUTPUT_DIR)/$(EXEC)
+	@echo $(SOURCES)
+	@echo $(OBJECTS)
+	@echo $(CFLAGS)
+	@echo $(LDFLAGS)
+
+
+# without phony, make assumes "build" is a file that needs to be made
+.PHONY: build
+build: $(OUTPUT_DIR)/$(EXEC)
+
+.PHONY: run
+run: build
+	$(OUTPUT_DIR)/$(EXEC)
 
 .PHONY: clean
 clean:
