@@ -10,6 +10,13 @@
 #    define _INLINE static inline
 #endif
 
+#define max(a, b) (((a) > (b)) ? (a) : (b))
+#define min(a, b) (((a) < (b)) ? (a) : (b))
+
+#define _PI          3.14159265358979323846264338327950288 /* pi */
+#define _PIf         ((float)_PI)
+#define DEG2RAD(DEG) ((DEG)*_PIf / 180.0f)
+
 typedef float vec3[3];
 typedef float vec4[4];
 typedef vec4  mat4[4];
@@ -106,6 +113,134 @@ void v3norm(vec3 v)
     v[0] /= length;
     v[1] /= length;
     v[2] /= length;
+}
+
+// mat4 functions ---------------------------------------------------------------------------------
+
+_INLINE
+void m4identity(mat4 m)
+{
+    memset(m, 0, sizeof(mat4));
+    m[0][0] = m[1][1] = m[2][2] = m[3][3] = 1.0f;
+}
+
+_INLINE
+void rotateMatrix(mat4 matrix, float angle, char axis)
+{
+    m4identity(matrix);
+
+    const float c = cosf(angle);
+    const float s = sinf(angle);
+
+    switch (axis)
+    {
+    case 'x':
+    case 'X':
+        matrix[1][1] = c;
+        matrix[1][2] = -s;
+        matrix[2][1] = s;
+        matrix[2][2] = c;
+        break;
+
+    case 'y':
+    case 'Y':
+        matrix[0][0] = c;
+        matrix[0][2] = s;
+        matrix[2][0] = -s;
+        matrix[2][2] = c;
+        break;
+
+    case 'z':
+    case 'Z':
+        matrix[0][0] = c;
+        matrix[0][1] = -s;
+        matrix[1][0] = s;
+        matrix[1][1] = c;
+        break;
+
+    default:
+        // Invalid axis specified
+        break;
+    }
+}
+
+_INLINE
+void m4lookat(const vec3 eye, const vec3 dir, const vec3 up, mat4 res)
+{
+    vec3 target;
+    v3add(eye, dir, target);
+
+    vec3 forward, right, new_up;
+
+    v3sub(target, eye, forward);
+    v3norm(forward);
+
+    v3cross(forward, up, right);
+    v3norm(right);
+
+    v3cross(right, forward, new_up);
+    // normalize(new_up);
+
+    res[0][0] = right[0];
+    res[0][1] = new_up[0];
+    res[0][2] = -forward[0];
+    res[0][3] = 0.0f;
+
+    res[1][0] = right[1];
+    res[1][1] = new_up[1];
+    res[1][2] = -forward[1];
+    res[1][3] = 0.0f;
+
+    res[2][0] = right[2];
+    res[2][1] = new_up[2];
+    res[2][2] = -forward[2];
+    res[2][3] = 0.0f;
+
+    res[3][0] = -v3dot(right, eye);
+    res[3][1] = -v3dot(new_up, eye);
+    res[3][2] = v3dot(forward, eye);
+    res[3][3] = 1.0f;
+}
+
+_INLINE
+void m4transmake(float x, float y, float z, mat4 res)
+{
+    m4identity(res);
+    res[3][0] = x;
+    res[3][1] = y;
+    res[3][2] = z;
+}
+
+_INLINE
+void m4scalemake(float x, float y, float z, mat4 res)
+{
+    m4identity(res);
+    res[0][0] = x;
+    res[1][1] = y;
+    res[2][2] = z;
+}
+
+_INLINE
+void m4perspective(float fovy, float aspect, float nearZ, float farZ, mat4 res)
+{
+    memset(res, 0, sizeof(mat4));
+
+    const float f  = 1.0f / tanf(fovy * 0.5f);
+    const float fn = 1.0f / (nearZ - farZ);
+
+#if 1 // [-1, 1]
+    res[0][0] = f / aspect;
+    res[1][1] = f;
+    res[2][2] = (nearZ + farZ) * fn;
+    res[2][3] = -1.0f;
+    res[3][2] = 2.0f * nearZ * farZ * fn;
+#else // [0, 1]
+    res[0][0] = f / aspect;
+    res[1][1] = f;
+    res[2][2] = farZ * fn;
+    res[2][3] = -1.0f;
+    res[3][2] = nearZ * farZ * fn;
+#endif
 }
 
 #endif // __MATEMATIKA_H__
