@@ -30,6 +30,7 @@ SOURCES := $(wildcard $(SRC_DIR)/*.c)
 # put the % part of the first section, into the % part of the second section
 # using the data from the last section
 OBJECTS := $(patsubst $(SRC_DIR)/%.c,$(OUTPUT_DIR)/%.o,$(SOURCES))
+DEPENDS := $(patsubst $(SRC_DIR)/%.c,$(OUTPUT_DIR)/%.d,$(SOURCES))
 
 # Default target
 all: $(OUTPUT_DIR)/$(EXEC)
@@ -42,7 +43,7 @@ $(OUTPUT_DIR)/$(EXEC): $(OBJECTS)
 # Build the object files
 $(OBJECTS): $(SOURCES)
 	@echo Building Oject : $<
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) -MMD -MP -c $< -o $@
 
 
 debug_vars:
@@ -65,3 +66,5 @@ run: build
 clean:
 	rm -f $(OUTPUT_DIR)/*.exe $(OUTPUT_DIR)/*.o
 	@echo [CLEAN] Clean completed!
+
+-include $(DEPENDS)
