@@ -42,7 +42,7 @@ void drawtriangle(triangle t, vec3 texcoords[3], mat4 MVP)
     for (int i = 0; i < 3; ++i)
     {
         //  clip space position
-        m4mulv4(MVP, (vec4){t[i][0], t[i][1], t[i][2], 1.0f}, clipspace[i]);
+        m4mulv4((const float(*)[4])MVP, (vec4){t[i][0], t[i][1], t[i][2], 1.0f}, clipspace[i]);
 
         // clipping (is this correct?)
         const float x = fabsf(clipspace[i][0]);
@@ -97,21 +97,26 @@ void drawtriangle(triangle t, vec3 texcoords[3], mat4 MVP)
     v3div(texcoords[1], clipspace[1][3], uv[1]);
     v3div(texcoords[2], clipspace[2][3], uv[2]);
 
-    float A01 = screenspace[2][1] - screenspace[1][1], B01 = screenspace[1][0] - screenspace[2][0];
-    float A12 = screenspace[0][1] - screenspace[2][1], B12 = screenspace[2][0] - screenspace[0][0];
-    float A20 = screenspace[1][1] - screenspace[0][1], B20 = screenspace[0][0] - screenspace[1][0];
+    const float dY0 = screenspace[2][1] - screenspace[1][1], dX0 = screenspace[1][0] - screenspace[2][0];
+    const float dY1 = screenspace[0][1] - screenspace[2][1], dX1 = screenspace[2][0] - screenspace[0][0];
+    const float dY2 = screenspace[1][1] - screenspace[0][1], dX2 = screenspace[0][0] - screenspace[1][0];
 
-    float C01 = (screenspace[2][0] * screenspace[1][1]) - (screenspace[2][1] * screenspace[1][0]);
-    float C12 = (screenspace[0][0] * screenspace[2][1]) - (screenspace[0][1] * screenspace[2][0]);
-    float C20 = (screenspace[1][0] * screenspace[0][1]) - (screenspace[1][1] * screenspace[0][0]);
+    const float C0 = (screenspace[2][0] * screenspace[1][1]) - (screenspace[2][1] * screenspace[1][0]);
+    const float C1 = (screenspace[0][0] * screenspace[2][1]) - (screenspace[0][1] * screenspace[2][0]);
+    const float C2 = (screenspace[1][0] * screenspace[0][1]) - (screenspace[1][1] * screenspace[0][0]);
 
-    const float inv_area = 1.0f / (A20 * B12 - A12 * B20);
+    const float inv_area = 1.0f / (dX1 * dY2 - dY1 * dX2);
 
     /* Should be ints? */
     // const vec3 P     = {minX + 0.5f, minY + 0.5f, 0.0f};
-    float alpha = (A01 * ((float)minX + 0.5f)) + (B01 * ((float)minY + 0.5f)) + C01;
-    float beta  = (A12 * ((float)minX + 0.5f)) + (B12 * ((float)minY + 0.5f)) + C12;
-    float gamma = (A20 * ((float)minX + 0.5f)) + (B20 * ((float)minY + 0.5f)) + C20;
+    float alpha = (dY0 * ((float)minX + 0.5f)) + (dX0 * ((float)minY + 0.5f)) + C0;
+    float betaa = (dY1 * ((float)minX + 0.5f)) + (dX1 * ((float)minY + 0.5f)) + C1;
+    float gamma = (dY2 * ((float)minX + 0.5f)) + (dX2 * ((float)minY + 0.5f)) + C2;
+
+    screenspace[1][2] = (screenspace[1][2] - screenspace[0][2]) * inv_area;
+    screenspace[2][2] = (screenspace[2][2] - screenspace[0][2]) * inv_area;
+
+    const float zstep = dY1 * screenspace[1][2] + dY2 * screenspace[2][2];
 
     // Rasterize
     triangle tri = {
@@ -124,24 +129,22 @@ void drawtriangle(triangle t, vec3 texcoords[3], mat4 MVP)
     {
         // Barycentric coordinates at start of row
         float w0 = alpha;
-        float w1 = beta;
+        float w1 = betaa;
         float w2 = gamma;
 
-        for (int x = minX; x <= maxX; ++x,
-                 w0 += A01,
-                 w1 += A12,
-                 w2 += A20) // One step to the right
+        float depth = screenspace[0][2] + (screenspace[1][2] * betaa) + (screenspace[2][2] * gamma);
+
+        for (int x = minX; x <= maxX; ++x,            //
+                                      w0 += dY0,      //
+                                      w1 += dY1,      //
+                                      w2 += dY2,      // One step to the right
+                                      depth += zstep) // Step the depth
         {
             if (w0 < 0.0f || w1 < 0.0f || w2 < 0.0f)
                 continue;
 
-            const float bw0 = w0 * inv_area;
-            const float bw1 = w1 * inv_area;
-            const float bw2 = w2 * inv_area;
-
             const int   index = (x * GRAFIKA_SCREEN_WIDTH) + y;
-            const float newZ  = bw0 * screenspace[0][2] + bw1 * screenspace[1][2] + bw2 * screenspace[2][2];
-            const float invZ  = 1.0f / newZ;
+            const float invZ  = 1.0f / depth;
 
             float *oldZ = &zbuffer[index];
 
@@ -150,10 +153,14 @@ void drawtriangle(triangle t, vec3 texcoords[3], mat4 MVP)
 
             *oldZ = invZ;
 
+            const float bary0 = w0 * inv_area;
+            const float bary1 = w1 * inv_area;
+            const float bary2 = w2 * inv_area;
+
             // Weights, see what i did there ;)
-            const float wait0 = bw0 * tri[0][2];
-            const float wait1 = bw1 * tri[1][2];
-            const float wait2 = bw2 * tri[2][2];
+            const float wait0 = bary0 * tri[0][2];
+            const float wait1 = bary1 * tri[1][2];
+            const float wait2 = bary2 * tri[2][2];
 
             // correction factor
             const float cf = 1.0f / (wait0 + wait1 + wait2);
@@ -173,9 +180,9 @@ void drawtriangle(triangle t, vec3 texcoords[3], mat4 MVP)
             grafika_setpixel(x, y, pixelcolour);
         }
         // One row step
-        alpha += B01;
-        beta += B12;
-        gamma += B20;
+        alpha += dX0;
+        betaa += dX1;
+        gamma += dX2;
     }
 }
 
