@@ -1,39 +1,7 @@
 #ifndef __STEPPING_H__
 #define __STEPPING_H__
 
-#include "../grafika.h"
-#include "../tex.h"
-#include "../obj.h"
-#include "../timer.h"
-#include "../matematika.h"
-
-typedef vec3 triangle[3];
-
-typedef struct rasterstate
-{
-    mat4 proj;
-    mat4 view;
-    mat4 model;
-
-    obj_t obj;
-    tex_t tex;
-} rasterstate_t;
-
-static rasterstate_t state = {0};
-
-// NOTE : Should this be in raster state?
-// probably better to move it into a "common.h" file
-static float zbuffer[GRAFIKA_SCREEN_HEIGHT * GRAFIKA_SCREEN_WIDTH];
-
-// static inline float edgefunc(const vec3 a, const vec3 b, const vec3 c)
-//{
-//     return (c[0] - a[0]) * (b[1] - a[1]) - (c[1] - a[1]) * (b[0] - a[0]);
-// }
-
-static inline float edgefunc(const vec3 A, const vec3 B, const vec3 P)
-{
-    return (B[0] - A[0]) * (P[1] - A[1]) - (B[1] - A[1]) * (P[0] - A[0]);
-}
+#include "common.h"
 
 void drawtriangle(triangle t, vec3 texcoords[3], mat4 MVP)
 {
