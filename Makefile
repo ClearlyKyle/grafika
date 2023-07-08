@@ -4,13 +4,17 @@
 # Build settings
 CC = gcc
 
-CFLAGS := -std=gnu11 -g -Wall -mconsole -fopenmp
+CFLAGS := -std=gnu11 -g -Wall -Wextra -pedantic -mconsole -fopenmp -Wimplicit-function-declaration
+#CFLAGS += -fsanitize=undefined
+#CFLAGS += -fsanitize=address
+#CFLAGS += -fsanitize=leak
+#CFLAGS += -fsanitize
 
 EXEC 		:= ModelViewer#
 OUTPUT_DIR 	:= bin#
 SRC_DIR 	:= src#
 
-INC_DIRS 	:= src deps#
+INC_DIRS 	:= src deps src/raster_methods#
 
 # pkg-config Library names
 LIB_NAMES := sdl2
@@ -64,7 +68,7 @@ run: build
 
 .PHONY: clean
 clean:
-	rm -f $(OUTPUT_DIR)/*.exe $(OUTPUT_DIR)/*.o
+	rm -f $(OUTPUT_DIR)/*.exe $(OUTPUT_DIR)/*.o $(OUTPUT_DIR)/*.d
 	@echo [CLEAN] Clean completed!
 
 -include $(DEPENDS)
