@@ -5,6 +5,7 @@
 CC = gcc
 
 CFLAGS := -std=gnu11 -g -Wall -Wextra -pedantic -mconsole -fopenmp -Wimplicit-function-declaration
+CFLAGS += -Wunreachable-code
 #CFLAGS += -fsanitize=undefined
 #CFLAGS += -fsanitize=address
 #CFLAGS += -fsanitize=leak
