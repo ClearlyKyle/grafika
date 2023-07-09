@@ -12,20 +12,8 @@
 
 typedef struct material
 {
-    char *newmtl;
-    float Ns;
-    float Ka[3];
-    float Kd[3];
-    float Ks[3];
-    float Ke[3];
-    float Ni;
-    float d;
-    int   illum;
-
-    char *map_Bump;
+    char *name;
     char *map_Kd;
-    char *map_Ns;
-    char *refl;
 } material_t;
 
 typedef struct vertindices
@@ -92,49 +80,55 @@ static void _material_file(char *line, material_t **mat_data, int *num_of_mats)
 
     printf("material file path : |%s|\n", material_file_path);
 
-    FILE *fp = NULL;
-    fopen_s(&fp, material_file_path, "r");
+    FILE *material_fp = NULL;
+    fopen_s(&material_fp, material_file_path, "r");
+    assert(material_fp);
 
     material_t *curr_mat    = NULL;
     int         mat_counter = 0;
 
     char linebuffer[256]; // Adjust the size
-    while (fgets(linebuffer, sizeof(linebuffer), fp) != NULL)
+    while (fgets(linebuffer, sizeof(linebuffer), material_fp) != NULL)
     {
         // Check for a new material
         if (strncmp(linebuffer, "newmtl", 6) == 0)
         {
             // Create new material struct
             mat_counter++;
+            printf("Creating new mat\n");
             *mat_data = realloc(*mat_data, sizeof(material_t) * mat_counter);
 
             curr_mat = mat_data[mat_counter - 1];
-        }
-        if (strncmp(linebuffer, "map_Bump", 8) == 0)
-        {
-            char *bump_path = _read_string_until(linebuffer, ' ');
-            removeNewline(++bump_path); // NOTE : this might be unsafe
-            printf("Bump map path: |%s|\n", bump_path);
 
-            const size_t str_len = strlen(bump_path);
-            curr_mat->map_Bump   = malloc(sizeof(char) * str_len);
+            // Get material name
+            char *material_name = _read_string_until(linebuffer, ' ');
+            removeNewline(++material_name); // NOTE : this might be unsafe
 
-            strncpy_s(curr_mat->map_Bump, str_len, bump_path, str_len);
+            const size_t str_len = strlen(material_name);
+            curr_mat->name       = malloc(sizeof(char) * str_len);
+
+            strncpy_s(curr_mat->name, str_len, material_name, str_len);
         }
-        else if (strncmp(linebuffer, "map_Kd", 6) == 0)
+        if (strncmp(linebuffer, "map_Kd", 6) == 0)
         {
-            char *bump_path = _read_string_until(linebuffer, ' ');
-            removeNewline(++bump_path); // NOTE : this might be unsafe
-            printf("Bump map path: |%s|\n", bump_path);
+            char *diffuse_path = _read_string_until(linebuffer, ' ');
+            removeNewline(++diffuse_path); // NOTE : this might be unsafe
+
+            const size_t str_len = strlen(diffuse_path) + 1;
+            curr_mat->map_Kd     = calloc(str_len, sizeof(char));
+
+            strncpy_s(curr_mat->map_Kd, str_len, diffuse_path, str_len);
         }
     }
 
     *num_of_mats = mat_counter;
-    fclose(fp);
+    fclose(material_fp);
 }
 
 static void parse_f_line(char *fline, const int num_vertex_values, vertindices_t *index_data)
 {
+    (void)num_vertex_values;
+
     int   vertex_index, texture_index, normal_index;
     char *current_char = fline + 2; // Skip the leading 'f' character and whitespace
 
@@ -214,7 +208,7 @@ obj_t obj_load(const char *filename)
         {
             // Count the number of spaces in the line
             int spaceCount = 0;
-            for (int i = 0; i < strlen(linebuffer); i++)
+            for (int i = 0; i < (int)strlen(linebuffer); i++)
                 if (linebuffer[i] == ' ')
                     spaceCount++;
 
@@ -241,12 +235,6 @@ obj_t obj_load(const char *filename)
 
     obj.indices = malloc(sizeof(vertindices_t) * vertCount);
 
-    printf("poss : %d\n", posCount);
-    printf("norms: %d\n", normalCount);
-    printf("texs : %d\n", texCount);
-    printf("faces: %d\n", frowCount);
-    printf("verts: %d\n", frowCount * 3);
-
     // Reset file pointer to the start of the file
     fseek(fp, 0, SEEK_SET);
 
@@ -263,17 +251,17 @@ obj_t obj_load(const char *filename)
 
         if (linebuffer[0] == 'v' && linebuffer[1] == 'n')
         {
-            sscanf(linebuffer, "vn %f %f %f",
-                   &obj.norms[nrm_idx + 0],
-                   &obj.norms[nrm_idx + 1],
-                   &obj.norms[nrm_idx + 2]);
+            sscanf_s(linebuffer, "vn %f %f %f",
+                     &obj.norms[nrm_idx + 0],
+                     &obj.norms[nrm_idx + 1],
+                     &obj.norms[nrm_idx + 2]);
             nrm_idx += 3;
         }
         else if (linebuffer[0] == 'v' && linebuffer[1] == 't')
         {
-            sscanf(linebuffer, "vt %f %f",
-                   &obj.texs[tex_idx + 0],
-                   &obj.texs[tex_idx + 1]);
+            sscanf_s(linebuffer, "vt %f %f",
+                     &obj.texs[tex_idx + 0],
+                     &obj.texs[tex_idx + 1]);
             tex_idx += 2;
         }
         else if (linebuffer[0] == 'v')
@@ -300,7 +288,7 @@ obj_t obj_load(const char *filename)
             int space_counter = 0;
 
             // Count the number of spaces in the line
-            for (int i = 0; i < strlen(linebuffer); i++)
+            for (int i = 0; i < (int)strlen(linebuffer); i++)
             {
                 if (linebuffer[i] == ' ')
                     space_counter++;
@@ -323,8 +311,6 @@ obj_t obj_load(const char *filename)
                 fptr[3] = face_data[0];
                 fptr[4] = face_data[2];
                 fptr[5] = face_data[3];
-
-                // f 544/1/1 536/2/1 428/3/1 426/4/1
 
                 indi_idx += 6;
             }
@@ -353,57 +339,17 @@ obj_t obj_load(const char *filename)
 
     obj.bbox = bbox;
 
-#if 0 // DEBUG
     printf("poss : %d\n", posCount);
-    printf("texs : %d\n", texCount);
     printf("norms: %d\n", normalCount);
+    printf("texs : %d\n", texCount);
     printf("faces: %d\n", frowCount);
     printf("verts: %d\n", frowCount * 3);
 
-    printf("Bounding box : min(%f, %f, %f), max(%f, %f, %f)\n",
-           bbox.min[0], bbox.min[1], bbox.min[2],
-           bbox.max[0], bbox.max[1], bbox.max[2]);
-
-    printf("mats : %d\n", obj.num_of_mats);
-    for (int i = 0; i < obj.num_of_mats; i++)
-    {
-        printf("bump : %s\n", obj.mats[i].map_Bump);
-    }
-
-    // for (size_t i = 0; i < obj.num_pos; i++)
+    printf("num mats: %d\n", obj.num_of_mats);
+    // for (int i = 0; i < obj.num_of_mats; i++)
     //{
-    //     const int index = i * 3;
-    //     printf("v %f, %f, %f\n",
-    //            obj.pos[index + 0],
-    //            obj.pos[index + 1],
-    //            obj.pos[index + 2]);
+    //     printf("%s - diffuse %s\n", obj.mats[i].name, obj.mats[i].map_Kd);
     // }
-
-    // for (size_t i = 0; i < obj.num_norms; i++)
-    //{
-    //     const int index = i * 3;
-    //     printf("vn %f, %f, %f\n",
-    //            obj.norms[index + 0],
-    //            obj.norms[index + 1],
-    //            obj.norms[index + 2]);
-    // }
-
-    // for (size_t i = 0; i < obj.num_texs; i++)
-    //{
-    //     const int index = i * 2;
-    //     printf("vt %f, %f\n",
-    //            obj.texs[index + 0],
-    //            obj.texs[index + 1]);
-    // }
-
-    // for (size_t i = 0; i < obj.num_verts; i++)
-    //{
-    //     printf("%d, %d, %d\n",
-    //            obj.indices[i].v_idx,
-    //            obj.indices[i].vt_idx,
-    //            obj.indices[i].vn_idx);
-    // }
-#endif
 
     fclose(fp);
     return obj;
@@ -427,7 +373,7 @@ void obj_destroy(obj_t *obj)
 
     *obj = (obj_t){0};
 
-    printf("obj destroyed\n");
+    printf("obj destroyed!\n");
 }
 
 #endif // __OBJ_H__
