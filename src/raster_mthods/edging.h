@@ -78,7 +78,7 @@ static void drawtriangle(const triangle t, const vec3 texcoords[3], const mat4 M
         {screenspace[2][0], screenspace[2][1], 1.0f / clipspace[2][3]},
     };
 
-    float area     = edgefunc(tri[0], tri[1], tri[2]);
+    float area     = v3edgefunc(tri[0], tri[1], tri[2]);
     float inv_area = 1.0f / area;
 
     for (int y = minY; y <= maxY; ++y)
@@ -87,9 +87,9 @@ static void drawtriangle(const triangle t, const vec3 texcoords[3], const mat4 M
         {
             vec3 point = {0.5f + (float)x, 0.5f + (float)y, 0.0f};
 
-            float w0 = edgefunc(tri[1], tri[2], point);
-            float w1 = edgefunc(tri[2], tri[0], point);
-            float w2 = edgefunc(tri[0], tri[1], point);
+            float w0 = v3edgefunc(tri[1], tri[2], point);
+            float w1 = v3edgefunc(tri[2], tri[0], point);
+            float w2 = v3edgefunc(tri[0], tri[1], point);
 
             if (w0 < 0.0f || w1 < 0.0f || w2 < 0.0f)
                 continue;
