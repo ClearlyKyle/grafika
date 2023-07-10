@@ -1,37 +1,9 @@
 #ifndef __EDGING_H__
 #define __EDGING_H__
 
-#include "../grafika.h"
-#include "../tex.h"
-#include "../obj.h"
-#include "../timer.h"
-#include "../matematika.h"
+#include "common.h"
 
-typedef vec3 triangle[3];
-
-typedef struct rasterstate
-{
-    mat4 proj;
-    mat4 view;
-    mat4 model;
-
-    obj_t obj;
-    tex_t tex;
-} rasterstate_t;
-
-static rasterstate_t state = {0};
-
-// NOTE : Should this be in raster state?
-// probably better to move it into a "common.h" file
-static float zbuffer[GRAFIKA_SCREEN_HEIGHT * GRAFIKA_SCREEN_WIDTH];
-
-// NOTE : Move to maths file?
-static inline float edgefunc(const vec3 a, const vec3 b, const vec3 c)
-{
-    return (c[0] - a[0]) * (b[1] - a[1]) - (c[1] - a[1]) * (b[0] - a[0]);
-}
-
-void drawtriangle(const triangle t, const vec3 texcoords[3], const mat4 MVP)
+static void drawtriangle(const triangle t, const vec3 texcoords[3], const mat4 MVP)
 {
     vec3 screenspace[3] = {0};
     vec4 clipspace[3]   = {0};
