@@ -3,7 +3,7 @@
 
 #include "common.h"
 
-void drawtriangle(triangle t, vec3 texcoords[3], mat4 MVP)
+static void drawtriangle(triangle t, vec3 texcoords[3], mat4 MVP)
 {
     // convert to clip space
     vec4 clipspace[3] = {0};
@@ -54,7 +54,6 @@ void drawtriangle(triangle t, vec3 texcoords[3], mat4 MVP)
     float fmaxX = fmaxf(screenspace[0][0], fmaxf(screenspace[1][0], screenspace[2][0]));
     float fmaxY = fmaxf(screenspace[0][1], fmaxf(screenspace[1][1], screenspace[2][1]));
 
-    // clip to screen space
     int minX = max(0, min((int)floorf(fminX), GRAFIKA_SCREEN_WIDTH - 1));
     int minY = max(0, min((int)floorf(fminY), GRAFIKA_SCREEN_HEIGHT - 1));
     int maxX = max(0, min((int)floorf(fmaxX), GRAFIKA_SCREEN_WIDTH - 1));
@@ -111,8 +110,9 @@ void drawtriangle(triangle t, vec3 texcoords[3], mat4 MVP)
             if (w0 < 0.0f || w1 < 0.0f || w2 < 0.0f)
                 continue;
 
-            const int   index = (x * GRAFIKA_SCREEN_WIDTH) + y;
-            const float invZ  = 1.0f / depth;
+            const int index = (x * GRAFIKA_SCREEN_WIDTH) + y;
+            // const float invZ  = 1.0f / depth;
+            const float invZ = depth;
 
             float *oldZ = &zbuffer[index];
 
