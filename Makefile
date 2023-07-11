@@ -6,10 +6,14 @@ CC = gcc
 
 CFLAGS := -std=gnu11 -g -Wall -Wextra -pedantic -mconsole -fopenmp -Wimplicit-function-declaration
 CFLAGS += -Wunreachable-code
+CFLAGS += -D_FORTIFY_SOURCE=2 -fstack-clash-protection
+CFLAGS += -fstack-protector
 #CFLAGS += -fsanitize=undefined
 #CFLAGS += -fsanitize=address
 #CFLAGS += -fsanitize=leak
 #CFLAGS += -fsanitize
+
+CFLAGS_RELEASE := -O3 -fopenmp -DNDEBUG
 
 EXEC 		:= ModelViewer#
 OUTPUT_DIR 	:= bin#
@@ -50,21 +54,17 @@ $(OBJECTS): $(SOURCES)
 	@echo Building Oject : $<
 	$(CC) $(CFLAGS) -MMD -MP -c $< -o $@
 
-
-debug_vars:
-	@echo $(OUTPUT_DIR)/$(EXEC)
-	@echo $(SOURCES)
-	@echo $(OBJECTS)
-	@echo $(CFLAGS)
-	@echo $(LDFLAGS)
-
-
 # without phony, make assumes "build" is a file that needs to be made
 .PHONY: build
 build: $(OUTPUT_DIR)/$(EXEC)
 
+.PHONY: release
+release: $(OBJECTS)
+	@echo Building Release Exe: $^
+	$(CC) $(CFLAGS_RELEASE) $^ -o $(OUTPUT_DIR)/$(EXEC) $(LDFLAGS)
+
 .PHONY: run
-run: build
+run:
 	$(OUTPUT_DIR)/$(EXEC)
 
 .PHONY: clean
@@ -73,3 +73,10 @@ clean:
 	@echo [CLEAN] Clean completed!
 
 -include $(DEPENDS)
+
+debug_vars:
+	@echo $(OUTPUT_DIR)/$(EXEC)
+	@echo $(SOURCES)
+	@echo $(OBJECTS)
+	@echo $(CFLAGS)
+	@echo $(LDFLAGS)
