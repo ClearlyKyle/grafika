@@ -8,8 +8,8 @@
 
 #include "SDL2/SDL.h"
 
-#define GRAFIKA_SCREEN_WIDTH  256
-#define GRAFIKA_SCREEN_HEIGHT 256
+#define GRAFIKA_SCREEN_WIDTH  512
+#define GRAFIKA_SCREEN_HEIGHT 512
 #define GRAFIKA_BPP           4
 
 typedef struct renderer
