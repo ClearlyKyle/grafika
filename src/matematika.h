@@ -243,4 +243,13 @@ void m4perspective(float fovy, float aspect, float nearZ, float farZ, mat4 res)
 #endif
 }
 
+_INLINE
+void m4transmake(float x, float y, float z, mat4 res)
+{
+    m4identity(res);
+    res[3][0] = x;
+    res[3][1] = y;
+    res[3][2] = z;
+}
+
 #endif // __MATEMATIKA_H__
