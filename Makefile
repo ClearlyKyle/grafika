@@ -63,7 +63,7 @@ build: $(OUTPUT_DIR)/$(EXEC)
 .PHONY: release
 release: $(OBJECTS)
 	@echo Building Release Exe: $^
-	$(CC) $(CFLAGS_RELEASE) $^ -o $(OUTPUT_DIR)/$(EXEC) $(LDFLAGS)
+	$(CC) $(CFLAGS_RELEASE) $^ -o $(OUTPUT_DIR)/RELEASE_$(EXEC) $(LDFLAGS)
 
 .PHONY: run
 run:
