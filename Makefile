@@ -4,10 +4,12 @@
 # Build settings
 CC = gcc
 
-CFLAGS := -std=gnu11 -g -Wall -Wextra -pedantic -mconsole -fopenmp -Wimplicit-function-declaration
-CFLAGS += -Wunreachable-code
-CFLAGS += -D_FORTIFY_SOURCE=2 -fstack-clash-protection
-CFLAGS += -fstack-protector
+CFLAGS := -std=gnu11 -g -mconsole -fopenmp 
+CFLAGS += -Wall -Wextra -pedantic
+CFLAGS += -Wunreachable-code -Wshadow -Wimplicit-function-declaration -Warray-bounds -Warray-bounds=2
+#CFLAGS += -D_FORTIFY_SOURCE=2 -fstack-clash-protection
+#CFLAGS += -fstack-protector
+CFLAGS += -msse -mssse3 -msse4.1 -march=native -mavx -mavx512f -mavx2 -mfma
 #CFLAGS += -fsanitize=undefined
 #CFLAGS += -fsanitize=address
 #CFLAGS += -fsanitize=leak
