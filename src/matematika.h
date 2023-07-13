@@ -252,4 +252,41 @@ void m4transmake(float x, float y, float z, mat4 res)
     res[3][2] = z;
 }
 
+_INLINE
+void makeAABB(vec3 pos[3], int AABB[4])
+{
+    /* Get the bounding box of the triangle,
+        setting pos[0] as starting values */
+    float fminX = pos[0][0];
+    float fminY = pos[0][1];
+    float fmaxX = pos[0][0];
+    float fmaxY = pos[0][1];
+
+    for (int i = 1; i < 3; ++i)
+    {
+        /* Update minimum and maximum values for x and y */
+        const float x = pos[i][0];
+        const float y = pos[i][1];
+
+        if (x < fminX)
+            fminX = x;
+        if (y < fminY)
+            fminY = y;
+
+        if (x > fmaxX)
+            fmaxX = x;
+        if (y > fmaxY)
+            fmaxY = y;
+    }
+    /* Precompute constants */
+    const int screenWidthMinusOne  = GRAFIKA_SCREEN_WIDTH - 1;
+    const int screenHeightMinusOne = GRAFIKA_SCREEN_HEIGHT - 1;
+
+    /* Clamp values to valid range */
+    AABB[0] = max(0, min((int)fminX, screenWidthMinusOne));  // minX
+    AABB[1] = max(0, min((int)fminY, screenHeightMinusOne)); // minY
+    AABB[2] = max(0, min((int)fmaxX, screenWidthMinusOne));  // maxX
+    AABB[3] = max(0, min((int)fmaxY, screenHeightMinusOne)); // maxY
+}
+
 #endif // __MATEMATIKA_H__
