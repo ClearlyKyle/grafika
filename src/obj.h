@@ -54,7 +54,7 @@ typedef struct obj
 static char *_read_string_until(char *inputString, const char stopChar)
 {
     // TODO : this should take in some kind of length
-    assert(inputString);
+    ASSERT(inputString, "string should not be NULL");
 
     while (*inputString != '\0' && *inputString != stopChar)
         inputString++;
@@ -64,7 +64,7 @@ static char *_read_string_until(char *inputString, const char stopChar)
 
 static void removeNewline(char *str)
 {
-    assert(str);
+    ASSERT(str, "string should not be NULL");
 
     const size_t length = strcspn(str, "\n"); // TODO : remove this function call
 
@@ -78,11 +78,9 @@ static void _material_file(char *line, material_t **mat_data, int *num_of_mats)
 
     removeNewline(++material_file_path); // NOTE : this might be unsafe
 
-    printf("material file path : |%s|\n", material_file_path);
-
     FILE *material_fp = NULL;
     fopen_s(&material_fp, material_file_path, "r");
-    assert(material_fp);
+    ASSERT(material_fp, "Error  opening matrial file: %s\n", material_file_path);
 
     material_t *curr_mat    = NULL;
     int         mat_counter = 0;
@@ -297,7 +295,7 @@ obj_t obj_load(const char *filename)
             // TODO : Read up to a space and save values
             if (space_counter >= 4)
             {
-                assert(space_counter == 4);
+                ASSERT(space_counter == 4, "space_counter = %d", space_counter);
 
                 vertindices_t face_data[4] = {0};
                 parse_f_line(linebuffer, space_counter, face_data);
@@ -316,7 +314,7 @@ obj_t obj_load(const char *filename)
             }
             else if (space_counter == 3)
             {
-                assert(space_counter == 3);
+                ASSERT(space_counter == 3, "space_counter = %d", space_counter);
 
                 vertindices_t face_data[3] = {0};
                 parse_f_line(linebuffer, space_counter, face_data);
