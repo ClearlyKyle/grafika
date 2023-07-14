@@ -14,11 +14,12 @@
 
 typedef struct renderer
 {
+    bool          quit;
     SDL_Window   *window;
     SDL_Renderer *renderer;
     SDL_Texture  *texture;
     uint32_t     *pixels;
-    bool          quit;
+    float         depth_buffer[GRAFIKA_SCREEN_WIDTH * GRAFIKA_SCREEN_HEIGHT];
 } Renderer_t;
 
 static Renderer_t rend = {0};
@@ -55,7 +56,14 @@ static inline void grafika_setpixel(int x, int y, uint32_t colour)
 
 static inline void grafika_clear(void)
 {
-    memset(rend.pixels, 0, GRAFIKA_SCREEN_WIDTH * GRAFIKA_SCREEN_HEIGHT * 4); // clear pixels
+    memset(rend.pixels, 0, GRAFIKA_SCREEN_WIDTH * GRAFIKA_SCREEN_HEIGHT * GRAFIKA_BPP); // clear pixels
+
+    // for (int i = 0; i < GRAFIKA_SCREEN_WIDTH * GRAFIKA_SCREEN_HEIGHT; ++i) // clear depth buffer
+    //     rend.depth_buffer[i] = 10.0f;
+
+    float *end = &rend.depth_buffer[GRAFIKA_SCREEN_WIDTH * GRAFIKA_SCREEN_HEIGHT];
+    for (float *p = rend.depth_buffer; p != end; p++) // clear depth buffer
+        *p = 10.0f;
 }
 
 static void grafika_startup(void)
