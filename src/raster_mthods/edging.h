@@ -3,17 +3,59 @@
 
 #include "common.h"
 
-static void drawtriangle(const triangle t, const vec3 texcoords[3], const mat4 MVP)
+static void draw_triangle(const triangle_t t);
+
+void draw_object(void)
+{
+#pragma omp parallel
+    {
+        obj_t          obj      = state.obj;
+        float         *pPos     = obj.pos;
+        float         *pTex     = obj.texs;
+        vertindices_t *pIndices = obj.indices;
+
+#pragma omp for
+        for (size_t i = 0; i < obj.num_f_rows; ++i)
+        {
+            triangle_t t = {0};
+
+            for (size_t j = 0; j < 3; ++j)
+            {
+                vertindices_t indices = pIndices[i * 3 + j];
+
+                const int posIndex = indices.v_idx;
+                const int texIndex = indices.vt_idx;
+
+/* send triangles to 'draw_triangle' in CCW order, set the winding mode of the loaded model */
+#if 0
+                const size_t storeIndex = j; // CCW triangles
+#else
+                const size_t storeIndex = 2 - j; // CW triangles (which blender uses)
+#endif
+                t.pos[storeIndex][0] = pPos[3 * posIndex + 0];
+                t.pos[storeIndex][1] = pPos[3 * posIndex + 1];
+                t.pos[storeIndex][2] = pPos[3 * posIndex + 2];
+
+                t.tex[storeIndex][0] = pTex[2 * texIndex + 0];
+                t.tex[storeIndex][1] = pTex[2 * texIndex + 1];
+            }
+
+            draw_triangle(t);
+        }
+    }
+}
+
+static void draw_triangle(const triangle_t t)
 {
     vec3 screenspace[3] = {0};
     vec4 clipspace[3]   = {0};
-    vec3 ndc[3]         = {0};
+    vec4 ndc[3]         = {0};
 
     // convert to clip space
     for (int i = 0; i < 3; ++i)
     {
-        //  clip space position
-        m4mulv4(MVP, (vec4){t[i][0], t[i][1], t[i][2], 1.0f}, clipspace[i]);
+        vec4 pos = {t.pos[i][0], t.pos[i][1], t.pos[i][2], 1.0f};
+        m4_mul_v4(state.MVP, pos, clipspace[i]);
 
         // clipping (is this correct?)
         const float x = fabsf(clipspace[i][0]);
@@ -27,20 +69,22 @@ static void drawtriangle(const triangle t, const vec3 texcoords[3], const mat4 M
     }
 
     // perspective division (clip to ndc)
+    vec3 w_vals;
     for (size_t i = 0; i < 3; i++)
     {
-        ndc[i][0] = clipspace[i][0] / clipspace[i][3];
-        ndc[i][1] = clipspace[i][1] / clipspace[i][3];
-        ndc[i][2] = clipspace[i][2] / clipspace[i][3];
+        w_vals[i] = 1.0f / clipspace[i][3]; // 1.0f / w
+        ndc[i][0] = clipspace[i][0] * w_vals[i];
+        ndc[i][1] = clipspace[i][1] * w_vals[i];
+        ndc[i][2] = clipspace[i][2] * w_vals[i];
     }
 
-    // back face culling (surface normal, can this be done with area?)
-    // vec3 sub10, sub20, normal;
-    // v3sub(ndc[1], ndc[0], sub10);
-    // v3sub(ndc[2], ndc[0], sub20);
-    // cross(sub10, sub20, normal);
-    // if (normal[2] > 0.0f)
-    //    return;
+    // back face culling (surface normal)
+    vec3 sub10, sub20, normal;
+    v3_sub(ndc[1], ndc[0], sub10);
+    v3_sub(ndc[2], ndc[0], sub20);
+    v3_cross(sub10, sub20, normal);
+    if (normal[2] > 0.0f)
+        return;
 
     for (int i = 0; i < 3; ++i)
     {
@@ -50,46 +94,30 @@ static void drawtriangle(const triangle t, const vec3 texcoords[3], const mat4 M
     }
 
     // calculate bounding rectangle
-    float fminX = fminf(screenspace[0][0], fminf(screenspace[1][0], screenspace[2][0]));
-    float fminY = fminf(screenspace[0][1], fminf(screenspace[1][1], screenspace[2][1]));
-    float fmaxX = fmaxf(screenspace[0][0], fmaxf(screenspace[1][0], screenspace[2][0]));
-    float fmaxY = fmaxf(screenspace[0][1], fmaxf(screenspace[1][1], screenspace[2][1]));
+    int AABB[4];
+    AABB_make(screenspace, AABB);
 
-    // clip to screen space
-    int minX = max(0, min((int)floorf(fminX), GRAFIKA_SCREEN_WIDTH - 1));
-    int minY = max(0, min((int)floorf(fminY), GRAFIKA_SCREEN_HEIGHT - 1));
-    int maxX = max(0, min((int)floorf(fmaxX), GRAFIKA_SCREEN_WIDTH - 1));
-    int maxY = max(0, min((int)floorf(fmaxY), GRAFIKA_SCREEN_HEIGHT - 1));
-
-    vec3 col1, col2, col3;
-    v3div((vec3){1.0f, 0.0f, 0.0f}, clipspace[0][3], col1);
-    v3div((vec3){0.0f, 1.0f, 0.0f}, clipspace[1][3], col2);
-    v3div((vec3){0.0f, 0.0f, 1.0f}, clipspace[2][3], col3);
-
-    vec3 uv[3];
-    v3div(texcoords[0], clipspace[0][3], uv[0]);
-    v3div(texcoords[1], clipspace[1][3], uv[1]);
-    v3div(texcoords[2], clipspace[2][3], uv[2]);
-
-    // Rasterize
-    triangle tri = {
-        {screenspace[0][0], screenspace[0][1], 1.0f / clipspace[0][3]},
-        {screenspace[1][0], screenspace[1][1], 1.0f / clipspace[1][3]},
-        {screenspace[2][0], screenspace[2][1], 1.0f / clipspace[2][3]},
-    };
-
-    float area     = v3edgefunc(tri[0], tri[1], tri[2]);
+    float area     = v3_edgefunc(screenspace[0], screenspace[1], screenspace[2]);
     float inv_area = 1.0f / area;
 
-    for (int y = minY; y <= maxY; ++y)
+    // pre fetch tex data
+    const int      texw    = state.tex.w;
+    const int      texh    = state.tex.h;
+    const int      texbpp  = state.tex.bpp;
+    unsigned char *texdata = state.tex.data;
+
+    float *pDepthBuffer = rend.depth_buffer;
+
+    // rasterize
+    for (int y = AABB[1]; y <= AABB[3]; ++y)
     {
-        for (int x = minX; x <= maxX; ++x)
+        for (int x = AABB[0]; x <= AABB[2]; ++x)
         {
             vec3 point = {0.5f + (float)x, 0.5f + (float)y, 0.0f};
 
-            float w0 = v3edgefunc(tri[1], tri[2], point);
-            float w1 = v3edgefunc(tri[2], tri[0], point);
-            float w2 = v3edgefunc(tri[0], tri[1], point);
+            float w0 = v3_edgefunc(screenspace[1], screenspace[2], point);
+            float w1 = v3_edgefunc(screenspace[2], screenspace[0], point);
+            float w2 = v3_edgefunc(screenspace[0], screenspace[1], point);
 
             if (w0 < 0.0f || w1 < 0.0f || w2 < 0.0f)
                 continue;
@@ -98,32 +126,40 @@ static void drawtriangle(const triangle t, const vec3 texcoords[3], const mat4 M
             w1 *= inv_area;
             w2 *= inv_area;
 
-            // correction factor
-            float cf = 1.0f / (w0 * tri[0][2] + w1 * tri[1][2] + w2 * tri[2][2]);
+            const int index = (x * GRAFIKA_SCREEN_WIDTH) + y;
 
-            const int   index = (x * GRAFIKA_SCREEN_WIDTH) + y;
-            const float newZ  = w0 * screenspace[0][2] + w1 * screenspace[1][2] + w2 * screenspace[2][2];
-            const float oldZ  = zbuffer[index];
-            if (newZ < oldZ)
+            const float depth = w0 * screenspace[0][2] + w1 * screenspace[1][2] + w2 * screenspace[2][2];
+
+            float *oldZ = pDepthBuffer + index;
+            // const float invZ  = 1.0f / depth;
+            const float invZ = depth;
+
+            if (invZ > *oldZ)
                 continue;
 
-            zbuffer[index] = newZ;
+            *oldZ = invZ;
 
-            float u = (uv[0][0] * w0 + uv[1][0] * w1 + uv[2][0] * w2) * cf;
-            float v = (uv[0][1] * w0 + uv[1][1] * w1 + uv[2][1] * w2) * cf;
+            // Weights, see what i did there ;)
+            const float wait0 = w0 * w_vals[0];
+            const float wait1 = w1 * w_vals[1];
+            const float wait2 = w2 * w_vals[2];
+
+            // correction factor
+            const float cf = 1.0f / (wait0 + wait1 + wait2);
+
+            float u = (t.tex[0][0] * wait0 + t.tex[1][0] * wait1 + t.tex[2][0] * wait2) * cf;
+            float v = (t.tex[0][1] * wait0 + t.tex[1][1] * wait1 + t.tex[2][1] * wait2) * cf;
 
             u = fabsf(u);
             v = fabsf(v);
 
-            u *= (float)state.tex.w - 1;
-            v *= (float)state.tex.h - 1;
+            u *= (float)texw - 1;
+            v *= (float)texh - 1;
 
-            unsigned char *texcolour   = state.tex.data + (((int)u + state.tex.w * (int)v) * state.tex.bpp);
+            unsigned char *texcolour   = texdata + (((int)u + texw * (int)v) * texbpp);
             uint32_t       pixelcolour = (0xFF << 24) + (texcolour[2] << 16) + (texcolour[1] << 8) + (texcolour[0] << 0);
 
             // Draw pixel
-            // 0xFF 00 00 00
-            // uint32_t pixelcolour = (0xFF << 24) + (red << 16) + (blu << 8) + (gre << 0);
             grafika_setpixel(x, y, pixelcolour);
         }
     }
