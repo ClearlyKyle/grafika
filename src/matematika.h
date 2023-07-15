@@ -23,6 +23,7 @@
 #define _PIf         ((float)_PI)
 #define DEG2RAD(DEG) ((DEG)*_PIf / 180.0f)
 
+typedef float vec2[2];
 typedef float vec3[3];
 typedef float vec4[4];
 typedef vec4  mat4[4];
