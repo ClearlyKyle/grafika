@@ -8,7 +8,7 @@ CFLAGS := -std=gnu11 -g -mconsole -fopenmp
 CFLAGS += -Wall -Wextra -pedantic
 CFLAGS += -Wunreachable-code -Wshadow -Wimplicit-function-declaration -Warray-bounds -Warray-bounds=2
 CFLAGS += -fstack-protector
-#CFLAGS += -msse -mssse3 -msse4.1 -march=native -mavx -mavx512f -mavx2 -mfma
+CFLAGS += -msse -mssse3 -msse4.1 -march=native
 
 CFLAGS_RELEASE := -O3 -fopenmp -DNDEBUG
 
@@ -16,10 +16,10 @@ EXEC 		:= ModelViewer#
 OUTPUT_DIR 	:= bin#
 SRC_DIR 	:= src#
 
-INC_DIRS 	:= ./src ./deps ./src/raster_methods#
+INC_DIRS 	:= ./src ./deps ./src/graphics/#
 
 # pkg-config Library names
-LIB_NAMES := sdl2
+LIB_NAMES := sdl2 sdl2_ttf
 
 # Library flags and linking
 LIB_CFLAGS  := $(shell pkg-config --cflags $(LIB_NAMES))
