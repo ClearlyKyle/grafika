@@ -3,6 +3,47 @@
 
 #include "common.h"
 
+static void draw_triangle(const triangle_t t);
+
+void draw_object(void)
+{
+#pragma omp parallel
+    {
+        obj_t          obj      = state.obj;
+        float         *pPos     = obj.pos;
+        float         *pTex     = obj.texs;
+        vertindices_t *pIndices = obj.indices;
+
+#pragma omp for
+        for (size_t i = 0; i < obj.num_f_rows; ++i)
+        {
+            triangle_t t = {0};
+
+            for (size_t j = 0; j < 3; ++j)
+            {
+                vertindices_t indices = pIndices[i * 3 + j];
+
+                const int posIndex = indices.v_idx;
+                const int texIndex = indices.vt_idx;
+
+#if 0
+                const size_t storeIndex = j; // CCW triangles
+#else
+                const size_t storeIndex = 2 - j; // CW triangles (which blender uses)
+#endif
+                t.pos[storeIndex][0] = pPos[3 * posIndex + 0];
+                t.pos[storeIndex][1] = pPos[3 * posIndex + 1];
+                t.pos[storeIndex][2] = pPos[3 * posIndex + 2];
+
+                t.tex[storeIndex][0] = pTex[2 * texIndex + 0];
+                t.tex[storeIndex][1] = pTex[2 * texIndex + 1];
+            }
+
+            draw_triangle(t);
+        }
+    }
+}
+
 /*
 Use this to precompute the tie braker edge conditions, use the E value before
 looping through the pixels
@@ -31,27 +72,17 @@ static inline bool Edge_Tie_Breaker(const float edge_value, const bool AB_test_r
 
 static inline float Interpolate_Values(vec3 littlef_values, vec3 attribute)
 {
-    return v3dot(littlef_values, attribute);
+    return v3_dot(littlef_values, attribute);
 }
 
-static void drawtriangle(triangle t, vec3 texcoords[3], mat4 MVP)
+static void draw_triangle(const triangle_t t)
 {
     // convert to clip space
     vec4 clipspace[3] = {0};
     for (int i = 0; i < 3; ++i)
     {
-        //  clip space position
-        m4mulv4((const float(*)[4])MVP, (vec4){t[i][0], t[i][1], t[i][2], 1.0f}, clipspace[i]);
-
-        //// clipping (is this correct?)
-        // const float x = fabsf(clipspace[i][0]);
-        // const float y = fabsf(clipspace[i][1]);
-        // const float w = fabsf(clipspace[i][3]);
-
-        // if ((-w <= x && x <= w) || (-w <= y && y <= w))
-        //     continue;
-        // else
-        //     return;
+        vec4 pos = {t.pos[i][0], t.pos[i][1], t.pos[i][2], 1.0f};
+        m4_mul_v4(state.MVP, pos, clipspace[i]);
     }
 
     vec4        screenspace[3] = {0};
@@ -100,31 +131,32 @@ static void drawtriangle(triangle t, vec3 texcoords[3], mat4 MVP)
         proj[i][2] = screenspace[i][2] / screenspace[i][3];
     }
 
-    /* get the bounding box of the triangle */
-    float fminX = fminf(proj[0][0], fminf(proj[1][0], proj[2][0]));
-    float fminY = fminf(proj[0][1], fminf(proj[1][1], proj[2][1]));
-    float fmaxX = fmaxf(proj[0][0], fmaxf(proj[1][0], proj[2][0]));
-    float fmaxY = fmaxf(proj[0][1], fmaxf(proj[1][1], proj[2][1]));
-
-    int minX = max(0, min((int)floorf(fminX), GRAFIKA_SCREEN_WIDTH - 1));
-    int minY = max(0, min((int)floorf(fminY), GRAFIKA_SCREEN_HEIGHT - 1));
-    int maxX = max(0, min((int)floorf(fmaxX), GRAFIKA_SCREEN_WIDTH - 1));
-    int maxY = max(0, min((int)floorf(fmaxY), GRAFIKA_SCREEN_HEIGHT - 1));
+    // calculate bounding rectangle
+    int AABB[4];
+    AABB_make(proj, AABB);
 
     // Evaluaate edge equation at first tile origin
-    const float edgeFunc0 = (E0[0] * (float)minX) + (E0[1] * (float)minY) + E0[2];
-    const float edgeFunc1 = (E1[0] * (float)minX) + (E1[1] * (float)minY) + E1[2];
-    const float edgeFunc2 = (E2[0] * (float)minX) + (E2[1] * (float)minY) + E2[2];
+    const float edgeFunc0 = (E0[0] * (float)AABB[0]) + (E0[1] * (float)AABB[1]) + E0[2];
+    const float edgeFunc1 = (E1[0] * (float)AABB[0]) + (E1[1] * (float)AABB[1]) + E1[2];
+    const float edgeFunc2 = (E2[0] * (float)AABB[0]) + (E2[1] * (float)AABB[1]) + E2[2];
 
     /* Pre compute some tie breaker test results */
     const bool pre_comp_tie_E0 = Tie_Breaker_AB_Test(E0);
     const bool pre_comp_tie_E1 = Tie_Breaker_AB_Test(E1);
     const bool pre_comp_tie_E2 = Tie_Breaker_AB_Test(E2);
 
+    // pre fetch tex data
+    const int      texw    = state.tex.w;
+    const int      texh    = state.tex.h;
+    const int      texbpp  = state.tex.bpp;
+    unsigned char *texdata = state.tex.data;
+
+    float *pDepthBuffer = rend.depth_buffer;
+
     // Start rasterizing by looping over pixels to output a per-pixel color
-    for (int y = minY, step_y = 0; y <= maxY; y++, step_y++)
+    for (int y = AABB[1], step_y = 0; y <= AABB[3]; y++, step_y++)
     {
-        for (int x = minX, step_x = 0; x <= maxX; x++, step_x++)
+        for (int x = AABB[0], step_x = 0; x <= AABB[2]; x++, step_x++)
         {
             // Step from edge function by multiples of the edge values
             // edgevalue * step_multiple
@@ -162,10 +194,9 @@ static void drawtriangle(triangle t, vec3 texcoords[3], mat4 MVP)
 
             const float depth = Interpolate_Values(littlef_values, (vec3){screenspace[0][2], screenspace[1][2], screenspace[2][2]});
 
+            float *oldZ = pDepthBuffer + index;
             // const float invZ = 1.0f / depth;
             const float invZ = depth;
-
-            float *oldZ = &zbuffer[index];
 
             // Perform depth test
             if (invZ > *oldZ)
@@ -175,13 +206,13 @@ static void drawtriangle(triangle t, vec3 texcoords[3], mat4 MVP)
             *oldZ = invZ;
 
             // Interpolate texture coordinates
-            float u = Interpolate_Values(littlef_values, (vec4){texcoords[0][0], texcoords[1][0], texcoords[2][0]});
-            float v = Interpolate_Values(littlef_values, (vec4){texcoords[0][1], texcoords[1][1], texcoords[2][1]});
+            float u = Interpolate_Values(littlef_values, (vec4){t.tex[0][0], t.tex[1][0], t.tex[2][0]});
+            float v = Interpolate_Values(littlef_values, (vec4){t.tex[0][1], t.tex[1][1], t.tex[2][1]});
 
-            u *= (float)state.tex.w - 1;
-            v *= (float)state.tex.h - 1;
+            u *= (float)texw - 1;
+            v *= (float)texh - 1;
 
-            unsigned char *texcolour   = state.tex.data + (((int)u + state.tex.w * (int)v) * state.tex.bpp);
+            unsigned char *texcolour   = texdata + (((int)u + texw * (int)v) * texbpp);
             uint32_t       pixelcolour = (0xFF << 24) + (texcolour[2] << 16) + (texcolour[1] << 8) + (texcolour[0] << 0);
 
             grafika_setpixel(x, y, pixelcolour);

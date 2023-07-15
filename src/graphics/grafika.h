@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <assert.h>
 
+#include "shrifty.h"
 #include "utils.h"
 
 #include "SDL2/SDL.h"
@@ -30,12 +31,15 @@ static void grafika_present(void)
     int   pitch = 0;
     SDL_LockTexture(rend.texture, NULL, &px, &pitch);
     {
-        memcpy_s(px, GRAFIKA_SCREEN_WIDTH * GRAFIKA_SCREEN_HEIGHT * pitch,
-                 rend.pixels, GRAFIKA_SCREEN_WIDTH * GRAFIKA_SCREEN_HEIGHT * GRAFIKA_BPP);
+        memcpy_s(px, GRAFIKA_SCREEN_HEIGHT * pitch,
+                 rend.pixels, GRAFIKA_SCREEN_WIDTH * GRAFIKA_SCREEN_HEIGHT * sizeof(uint32_t));
     }
     SDL_UnlockTexture(rend.texture);
-
     SDL_RenderClear(rend.renderer);
+
+    // Convert the SDL_Surface to an SDL_Texture
+    SDL_Texture *surfaceTexture = SDL_CreateTextureFromSurface(rend.renderer, text_state.surface);
+
     SDL_RenderCopyEx(rend.renderer,
                      rend.texture,
                      NULL,
@@ -44,7 +48,14 @@ static void grafika_present(void)
                      NULL,
                      SDL_FLIP_VERTICAL);
 
+    SDL_RenderCopy(rend.renderer, surfaceTexture, NULL, NULL);
+
+    // Clear the entire surface with black color
+    SDL_FillRect(text_state.surface, NULL, SDL_MapRGBA(text_state.surface->format, 0, 0, 0, 0));
+
     SDL_RenderPresent(rend.renderer);
+
+    SDL_DestroyTexture(surfaceTexture);
 }
 
 static inline void grafika_setpixel(int x, int y, uint32_t colour)
@@ -69,7 +80,7 @@ static inline void grafika_clear(void)
 static void grafika_startup(void)
 {
     ASSERT(!SDL_Init(SDL_INIT_VIDEO),
-           "SDL failed to initialize: %s",
+           "SDL failed to initialize: %s\n",
            SDL_GetError());
 
     rend.window =
@@ -97,14 +108,14 @@ static void grafika_startup(void)
             GRAFIKA_SCREEN_WIDTH,
             GRAFIKA_SCREEN_HEIGHT);
 
-    rend.pixels = malloc(GRAFIKA_SCREEN_WIDTH * GRAFIKA_SCREEN_HEIGHT * GRAFIKA_BPP);
+    rend.pixels = malloc(sizeof(uint32_t) * GRAFIKA_SCREEN_WIDTH * GRAFIKA_SCREEN_HEIGHT);
 
     SDL_SetRenderTarget(rend.renderer, NULL);
     SDL_SetRenderDrawColor(rend.renderer, 0, 0, 0, 0xFF);
-    SDL_SetRenderDrawBlendMode(rend.renderer, SDL_BLENDMODE_NONE);
+    SDL_SetRenderDrawBlendMode(rend.renderer, SDL_BLENDMODE_BLEND); // enable alpha blending
 }
 
-static void grafika_destroy(void)
+static void grafika_shutdown(void)
 {
     SDL_DestroyTexture(rend.texture);
     SDL_DestroyRenderer(rend.renderer);

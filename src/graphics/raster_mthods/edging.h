@@ -26,7 +26,6 @@ void draw_object(void)
                 const int posIndex = indices.v_idx;
                 const int texIndex = indices.vt_idx;
 
-/* send triangles to 'draw_triangle' in CCW order, set the winding mode of the loaded model */
 #if 0
                 const size_t storeIndex = j; // CCW triangles
 #else
@@ -39,7 +38,6 @@ void draw_object(void)
                 t.tex[storeIndex][0] = pTex[2 * texIndex + 0];
                 t.tex[storeIndex][1] = pTex[2 * texIndex + 1];
             }
-
             draw_triangle(t);
         }
     }
@@ -49,7 +47,6 @@ static void draw_triangle(const triangle_t t)
 {
     vec3 screenspace[3] = {0};
     vec4 clipspace[3]   = {0};
-    vec4 ndc[3]         = {0};
 
     // convert to clip space
     for (int i = 0; i < 3; ++i)
@@ -69,7 +66,7 @@ static void draw_triangle(const triangle_t t)
     }
 
     // perspective division (clip to ndc)
-    vec3 w_vals;
+    vec3 ndc[3], w_vals;
     for (size_t i = 0; i < 3; i++)
     {
         w_vals[i] = 1.0f / clipspace[i][3]; // 1.0f / w
@@ -150,8 +147,8 @@ static void draw_triangle(const triangle_t t)
             float u = (t.tex[0][0] * wait0 + t.tex[1][0] * wait1 + t.tex[2][0] * wait2) * cf;
             float v = (t.tex[0][1] * wait0 + t.tex[1][1] * wait1 + t.tex[2][1] * wait2) * cf;
 
-            u = fabsf(u);
-            v = fabsf(v);
+            // u = fabsf(u);
+            // v = fabsf(v);
 
             u *= (float)texw - 1;
             v *= (float)texh - 1;
@@ -159,7 +156,7 @@ static void draw_triangle(const triangle_t t)
             unsigned char *texcolour   = texdata + (((int)u + texw * (int)v) * texbpp);
             uint32_t       pixelcolour = (0xFF << 24) + (texcolour[2] << 16) + (texcolour[1] << 8) + (texcolour[0] << 0);
 
-            // Draw pixel
+            // draw pixel
             grafika_setpixel(x, y, pixelcolour);
         }
     }
