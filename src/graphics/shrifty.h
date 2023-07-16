@@ -37,7 +37,8 @@ static inline void text_startup(int w, int h, int font_size)
 static inline void text_shutdown(void)
 {
     SDL_FreeSurface(text_state.surface);
-    TTF_CloseFont(text_state.font);
+    if (text_state.font)
+        TTF_CloseFont(text_state.font);
 }
 
 static inline void text_write(int x, int y, const char *text)

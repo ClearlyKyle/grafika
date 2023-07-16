@@ -12,6 +12,7 @@ int main(int argc, char *argv[])
     (void)argc, (void)argv;
 
     grafika_startup();
+    text_startup(GRAFIKA_SCREEN_WIDTH, GRAFIKA_SCREEN_HEIGHT, 12);
 
     state.obj = obj_load("res/Cube/cube.obj");
     // state.obj = obj_load("plane.obj");
@@ -52,7 +53,7 @@ int main(int argc, char *argv[])
     TIMER_START(frame_timer);
 
     int    frame_counter          = 0;
-    double frame_time_accumulated = 0.0;
+    double frame_time_accumulated = 0.0, avg_time = 0.0;
 
     while (!rend.quit)
     {
@@ -101,20 +102,17 @@ int main(int argc, char *argv[])
         grafika_clear();
         {
             draw_object();
-            // draw_depthbuffer();
         }
         grafika_present();
 
         TIMER_UPDATE(frame_timer);
 
+        TEXT_WRITE_FORMAT(2, 2, "%0.2fms", avg_time);
+        TEXT_WRITE_FORMAT(2, 12, "verts : %zu", state.obj.num_verts);
+
         if (frame_counter == 64)
         {
-            const double avg_time = frame_time_accumulated / frame_counter;
-
-            char buff[16] = {0};
-            sprintf_s(buff, sizeof(buff), "%0.2fms", avg_time);
-            SDL_SetWindowTitle(rend.window, buff);
-
+            avg_time               = frame_time_accumulated / frame_counter;
             frame_counter          = 0;
             frame_time_accumulated = 0.0;
         }
@@ -127,6 +125,7 @@ int main(int argc, char *argv[])
 
     obj_destroy(&state.obj);
     draw_onexit();
+    text_shutdown();
 
     return 0;
 }
