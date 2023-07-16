@@ -126,7 +126,7 @@ int main(int argc, char *argv[])
     }
 
     obj_destroy(&state.obj);
-    grafika_destroy();
+    draw_onexit();
 
     return 0;
 }
