@@ -358,16 +358,18 @@ void obj_destroy(obj_t *obj)
     if (!obj)
         return;
 
-    if (obj->pos)
-        free(obj->pos);
-    if (obj->norms)
-        free(obj->norms);
-    if (obj->texs)
-        free(obj->texs);
-    if (obj->indices)
-        free(obj->indices);
-    if (obj->mats)
-        free(obj->mats);
+    SAFE_FREE(obj->pos);
+    SAFE_FREE(obj->norms);
+    SAFE_FREE(obj->texs);
+    SAFE_FREE(obj->indices);
+
+    for (int i = 0; i < obj->num_of_mats; i++)
+    {
+        SAFE_FREE(obj->mats[i].name);
+        SAFE_FREE(obj->mats[i].map_Kd);
+        SAFE_FREE(obj->mats[i].map_bump);
+    }
+    SAFE_FREE(obj->mats);
 
     *obj = (obj_t){0};
 

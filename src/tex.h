@@ -28,11 +28,8 @@ tex_t tex_load(const char *file_path, bool flip)
 
 void tex_destroy(tex_t *t)
 {
-    if (t->data)
-    {
-        free(t->data);
-        t->data = NULL;
-    }
+    SAFE_FREE(t->data);
     *t = (tex_t){0};
 }
+
 #endif // __TEX_H__

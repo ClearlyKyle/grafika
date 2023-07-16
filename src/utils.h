@@ -9,8 +9,17 @@
             fprintf(stderr, __VA_ARGS__);                                       \
             abort();                                                            \
         }
+#    define SAFE_FREE(POINTER_TO_DATA)    \
+        {                                 \
+            if ((POINTER_TO_DATA))        \
+            {                             \
+                free(POINTER_TO_DATA);    \
+                (POINTER_TO_DATA) = NULL; \
+            }                             \
+        }
 #else
 #    define ASSERT(EXPR, ...)
+#    define SAFE_FREE(POINTER_TO_DATA)
 #endif
 
 #endif // __UTILS_H__
