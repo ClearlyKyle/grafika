@@ -14,6 +14,7 @@ typedef struct material
 {
     char *name;
     char *map_Kd;
+    char *map_bump;
 } material_t;
 
 typedef struct vertindices
@@ -97,6 +98,7 @@ static void _material_file(char *line, material_t **mat_data, int *num_of_mats)
             *mat_data = realloc(*mat_data, sizeof(material_t) * mat_counter);
 
             curr_mat = mat_data[mat_counter - 1];
+            memset(curr_mat, 0, sizeof(material_t));
 
             // Get material name
             char *material_name = _read_string_until(linebuffer, ' ');
@@ -107,7 +109,7 @@ static void _material_file(char *line, material_t **mat_data, int *num_of_mats)
 
             strncpy_s(curr_mat->name, str_len, material_name, str_len);
         }
-        if (strncmp(linebuffer, "map_Kd", 6) == 0)
+        if (strncmp(linebuffer, "map_Kd", 6) == 0) // Diffuse Map
         {
             char *diffuse_path = _read_string_until(linebuffer, ' ');
             removeNewline(++diffuse_path); // NOTE : this might be unsafe
@@ -116,6 +118,16 @@ static void _material_file(char *line, material_t **mat_data, int *num_of_mats)
             curr_mat->map_Kd     = calloc(str_len, sizeof(char));
 
             strncpy_s(curr_mat->map_Kd, str_len, diffuse_path, str_len);
+        }
+        if (strncmp(linebuffer, "map_bump", 6) == 0 || strncmp(linebuffer, "map_Bump", 6) == 0) // Bump Map
+        {
+            char *bump_path = _read_string_until(linebuffer, ' ');
+            removeNewline(++bump_path); // NOTE : this might be unsafe
+
+            const size_t str_len = strlen(bump_path) + 1;
+            curr_mat->map_bump   = calloc(str_len, sizeof(char));
+
+            strncpy_s(curr_mat->map_bump, str_len, bump_path, str_len);
         }
     }
 
@@ -292,7 +304,6 @@ obj_t obj_load(const char *filename)
                     space_counter++;
             }
 
-            // TODO : Read up to a space and save values
             if (space_counter >= 4)
             {
                 ASSERT(space_counter == 4, "space_counter = %d", space_counter);
@@ -344,10 +355,11 @@ obj_t obj_load(const char *filename)
     printf("verts: %d\n", frowCount * 3);
 
     printf("num mats: %d\n", obj.num_of_mats);
-    // for (int i = 0; i < obj.num_of_mats; i++)
-    //{
-    //     printf("%s - diffuse %s\n", obj.mats[i].name, obj.mats[i].map_Kd);
-    // }
+    for (int i = 0; i < obj.num_of_mats; i++)
+    {
+        printf("%s - diffuse %s\n", obj.mats[i].name, obj.mats[i].map_Kd);
+        printf("%s - normal  %s\n", obj.mats[i].name, obj.mats[i].map_bump);
+    }
 
     fclose(fp);
     return obj;
