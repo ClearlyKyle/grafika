@@ -3,47 +3,6 @@
 
 #include "common.h"
 
-static void draw_triangle(const triangle_t t);
-
-void draw_object(void)
-{
-#pragma omp parallel
-    {
-        obj_t          obj      = state.obj;
-        float         *pPos     = obj.pos;
-        float         *pTex     = obj.texs;
-        vertindices_t *pIndices = obj.indices;
-
-#pragma omp for
-        for (size_t i = 0; i < obj.num_f_rows; ++i)
-        {
-            triangle_t t = {0};
-
-            for (size_t j = 0; j < 3; ++j)
-            {
-                vertindices_t indices = pIndices[i * 3 + j];
-
-                const int posIndex = indices.v_idx;
-                const int texIndex = indices.vt_idx;
-
-#if 0
-                const size_t storeIndex = j; // CCW triangles
-#else
-                const size_t storeIndex = 2 - j; // CW triangles (which blender uses)
-#endif
-                t.pos[storeIndex][0] = pPos[3 * posIndex + 0];
-                t.pos[storeIndex][1] = pPos[3 * posIndex + 1];
-                t.pos[storeIndex][2] = pPos[3 * posIndex + 2];
-
-                t.tex[storeIndex][0] = pTex[2 * texIndex + 0];
-                t.tex[storeIndex][1] = pTex[2 * texIndex + 1];
-            }
-
-            draw_triangle(t);
-        }
-    }
-}
-
 /*
 Use this to precompute the tie braker edge conditions, use the E value before
 looping through the pixels
@@ -216,6 +175,47 @@ static void draw_triangle(const triangle_t t)
             uint32_t       pixelcolour = (0xFF << 24) + (texcolour[2] << 16) + (texcolour[1] << 8) + (texcolour[0] << 0);
 
             grafika_setpixel(x, y, pixelcolour);
+        }
+    }
+}
+
+static void draw_onexit(void) {} /* Do nothing */
+
+static void draw_object(void)
+{
+#pragma omp parallel
+    {
+        obj_t          obj      = state.obj;
+        float         *pPos     = obj.pos;
+        float         *pTex     = obj.texs;
+        vertindices_t *pIndices = obj.indices;
+
+#pragma omp for
+        for (size_t i = 0; i < obj.num_f_rows; ++i)
+        {
+            triangle_t t = {0};
+
+            for (size_t j = 0; j < 3; ++j)
+            {
+                vertindices_t indices = pIndices[i * 3 + j];
+
+                const int posIndex = indices.v_idx;
+                const int texIndex = indices.vt_idx;
+
+#if 0
+                const size_t storeIndex = j; // CCW triangles
+#else
+                const size_t storeIndex = 2 - j; // CW triangles (which blender uses)
+#endif
+                t.pos[storeIndex][0] = pPos[3 * posIndex + 0];
+                t.pos[storeIndex][1] = pPos[3 * posIndex + 1];
+                t.pos[storeIndex][2] = pPos[3 * posIndex + 2];
+
+                t.tex[storeIndex][0] = pTex[2 * texIndex + 0];
+                t.tex[storeIndex][1] = pTex[2 * texIndex + 1];
+            }
+
+            draw_triangle(t);
         }
     }
 }
