@@ -17,6 +17,7 @@ typedef struct rasterstate
 {
     mat4  model;
     mat4  MVP;
+    vec3  cam_pos;
     tex_t tex;
     obj_t obj;
 } rasterstate_t;

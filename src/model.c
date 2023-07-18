@@ -37,17 +37,26 @@ int main(int argc, char *argv[])
     m4_make_trans(centerx, centery, centerz, trans);
 
     // Scale model height to 1
+    float model_scale = 1.0f;
 #ifdef LH_COORDINATE_SYSTEM
     const float model_scale = -1.0f / (bbox.max[1] - bbox.min[1]);
 #else
-    const float model_scale = 1.0f / (bbox.max[1] - bbox.min[1]);
+    if ((centerx + centery + centerz) != 0.0f)
+        model_scale = 1.0f / (bbox.max[1] - bbox.min[1]);
 #endif
 
     mat4 scale; // scale matrix
     m4_make_scale(model_scale, model_scale, model_scale, scale);
 
+    printf("bounding boxe : x(%f, %f), y(%f, %f), z(%f, %f)\n", bbox.min[0], bbox.max[0], bbox.min[1], bbox.max[1], bbox.min[2], bbox.max[2]);
+    printf("model - scale : %f, center (%f, %f, %f)\n", model_scale, centerx, centery, centerz);
+
     float rotationAngleX = 0.0f, rotationAngleY = 0.0f;
-    float scrollAmount = 2.0f;
+    float scrollAmount = 4.0f;
+
+    state.cam_pos[0] = 0.0f;
+    state.cam_pos[1] = 0.0f;
+    state.cam_pos[2] = scrollAmount;
 
     timer_t frame_timer = {0};
     TIMER_START(frame_timer);
@@ -80,10 +89,10 @@ int main(int argc, char *argv[])
         }
 
         mat4 view;
-        vec3 eye    = {0.0f, 0.0f, scrollAmount};
-        vec3 target = {0.0f, 0.0f, 0.0f};
-        vec3 up     = {0.0f, 1.0f, 0.0f};
-        m4_lookat(eye, target, up, view);
+        state.cam_pos[2] = scrollAmount;
+        vec3 target      = {0.0f, 0.0f, 0.0f};
+        vec3 up          = {0.0f, 1.0f, 0.0f};
+        m4_lookat(state.cam_pos, target, up, view);
 
         // Create rotation matrices
         mat4 rotx, roty;
@@ -91,12 +100,12 @@ int main(int argc, char *argv[])
         m4_make_rot(roty, DEG2RAD(-rotationAngleY), 'y');
 
         // Combine rotations by multiplying matrices (SRT)
-        mat4 model, rot;
+        mat4 rot;
         m4_mul_m4(rotx, roty, rot);
-        m4_mul_m4(rot, trans, model);
-        m4_mul_m4(scale, model, model);
+        m4_mul_m4(rot, trans, state.model);
+        m4_mul_m4(scale, state.model, state.model);
 
-        m4_mul_m4(view, model, state.MVP);
+        m4_mul_m4(view, state.model, state.MVP);
         m4_mul_m4(proj, state.MVP, state.MVP);
 
         grafika_clear();
@@ -109,6 +118,7 @@ int main(int argc, char *argv[])
 
         TEXT_WRITE_FORMAT(2, 2, "%0.2fms", avg_time);
         TEXT_WRITE_FORMAT(2, 12, "verts : %zu", state.obj.num_verts);
+        TEXT_WRITE_FORMAT(2, 22, "cam: (%0.2f, %0.2f, %0.2f)", state.cam_pos[0], state.cam_pos[1], state.cam_pos[2]);
 
         if (frame_counter == 64)
         {
@@ -125,6 +135,7 @@ int main(int argc, char *argv[])
 
     obj_destroy(&state.obj);
     draw_onexit();
+    grafika_shutdown();
     text_shutdown();
 
     return 0;
