@@ -15,6 +15,7 @@ typedef struct material
     char *name;
     char *map_Kd;
     char *map_bump;
+    char *disp;
 } material_t;
 
 typedef struct vertindices
@@ -119,7 +120,7 @@ static void _material_file(char *line, material_t **mat_data, int *num_of_mats)
 
             strncpy_s(curr_mat->map_Kd, str_len, diffuse_path, str_len);
         }
-        if (strncmp(linebuffer, "map_bump", 6) == 0 || strncmp(linebuffer, "map_Bump", 6) == 0) // Bump Map
+        if (strncmp(linebuffer, "map_bump", 8) == 0 || strncmp(linebuffer, "map_Bump", 8) == 0) // Bump Map
         {
             char *bump_path = _read_string_until(linebuffer, ' ');
             removeNewline(++bump_path); // NOTE : this might be unsafe
@@ -128,6 +129,16 @@ static void _material_file(char *line, material_t **mat_data, int *num_of_mats)
             curr_mat->map_bump   = calloc(str_len, sizeof(char));
 
             strncpy_s(curr_mat->map_bump, str_len, bump_path, str_len);
+        }
+        if (strncmp(linebuffer, "disp", 4) == 0) // Displacement Map
+        {
+            char *disp_path = _read_string_until(linebuffer, ' ');
+            removeNewline(++disp_path); // NOTE : this might be unsafe
+
+            const size_t str_len = strlen(disp_path) + 1;
+            curr_mat->disp       = calloc(str_len, sizeof(char));
+
+            strncpy_s(curr_mat->disp, str_len, disp_path, str_len);
         }
     }
 
@@ -359,6 +370,7 @@ obj_t obj_load(const char *filename)
     {
         printf("%s - diffuse %s\n", obj.mats[i].name, obj.mats[i].map_Kd);
         printf("%s - normal  %s\n", obj.mats[i].name, obj.mats[i].map_bump);
+        printf("%s - disp    %s\n", obj.mats[i].name, obj.mats[i].disp);
     }
 
     fclose(fp);
@@ -380,6 +392,7 @@ void obj_destroy(obj_t *obj)
         SAFE_FREE(obj->mats[i].name);
         SAFE_FREE(obj->mats[i].map_Kd);
         SAFE_FREE(obj->mats[i].map_bump);
+        SAFE_FREE(obj->mats[i].disp);
     }
     SAFE_FREE(obj->mats);
 
