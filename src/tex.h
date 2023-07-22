@@ -23,6 +23,8 @@ tex_t tex_load(const char *file_path, bool flip)
     t.data = stbi_load(file_path, &t.w, &t.h, &t.bpp, 0);
     ASSERT(t.data, "Failed to open file : '%s'\n", file_path);
 
+    printf("tex: flip(%d) bpp(%d) w(%d) h(%d)  \t%s\n", flip, t.bpp, t.w, t.h, file_path);
+
     return t;
 }
 

@@ -54,6 +54,8 @@ static void draw_triangle(const triangle_t t)
     int AABB[4];
     AABB_make(screenspace, AABB);
 
+    // printf("AABB - minX %d, minY %d, maxX %d, maxY %d\n", AABB[0], AABB[1], AABB[2], AABB[3]);
+
     float area     = v3_edgefunc(screenspace[0], screenspace[1], screenspace[2]);
     float inv_area = 1.0f / area;
 
@@ -117,6 +119,7 @@ static void draw_triangle(const triangle_t t)
             uint32_t       pixelcolour = (0xFF << 24) + (texcolour[2] << 16) + (texcolour[1] << 8) + (texcolour[0] << 0);
 
             // draw pixel
+            // grafika_setpixel(x, y, 0xFFFFFFFF);
             grafika_setpixel(x, y, pixelcolour);
         }
     }
@@ -144,7 +147,6 @@ static void draw_object(void)
 
                 const int posIndex = indices.v_idx;
                 const int texIndex = indices.vt_idx;
-
 #if 0
                 const size_t storeIndex = j; // CCW triangles
 #else
