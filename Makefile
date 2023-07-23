@@ -4,13 +4,15 @@
 # Build settings
 CC = gcc
 
-CFLAGS := -std=gnu11 -g -mconsole -fopenmp 
+CFLAGS := -std=gnu11 -g -mconsole -fopenmp
 CFLAGS += -Wall -Wextra -pedantic
-CFLAGS += -Wunreachable-code -Wshadow -Wimplicit-function-declaration -Warray-bounds -Warray-bounds=2
-CFLAGS += -fstack-protector
-CFLAGS += -msse -mssse3 -msse4.1 -march=native
+CFLAGS += -Wunreachable-code -Wshadow -Wimplicit-function-declaration
+CFLAGS += -fstack-protector-all -ftrack-macro-expansion=0 -fno-omit-frame-pointer
+CFLAGS += -msse -mssse3 -msse4.1 -march=native # SIMD things
+#CFLAGS += -O2 -Warray-bounds #for some reason this works to get array access errors
 
-CFLAGS_RELEASE := -O3 -fopenmp -DNDEBUG
+# omp has an issue if there is no -fstack-protector
+CFLAGS_RELEASE := -O3 -mconsole -fopenmp -fstack-protector
 
 EXEC 		:= ModelViewer#
 OUTPUT_DIR 	:= bin#
@@ -59,7 +61,7 @@ build: $(OUTPUT_DIR)/$(EXEC)
 # Release target
 .PHONY: release
 release:
-	@make build CFLAGS="$(CFLAGS_RELEASE) $(LIB_CFLAGS)"
+	@make build CFLAGS="$(CFLAGS_RELEASE)"
 
 .PHONY: run
 run:
