@@ -43,10 +43,13 @@ static inline void text_shutdown(void)
 
 static inline void text_write(int x, int y, const char *text)
 {
+    ASSERT(text, "Text is NULL\n");
+
     SDL_Color    text_colour  = {255, 255, 255, 255}; // White color for text
     SDL_Surface *text_surface = TTF_RenderText_Blended(text_state.font, text, text_colour);
+    ASSERT(text_surface, "TTF_RenderText_Blended FAILED:\nError - %s\ntext  - %s\n", TTF_GetError(), text);
 
-    SDL_Rect text_dest = {.x = x, .y = y, .w = text_surface->w, .h = text_surface->h};
+    SDL_Rect text_dest = {x, y, text_surface->w, text_surface->h};
 
     SDL_BlitSurface(text_surface, NULL, text_state.surface, &text_dest);
 }
