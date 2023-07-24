@@ -1,13 +1,16 @@
 #ifndef __UTILS_H__
 #define __UTILS_H__
 
+#include "assert.h"
+
+#define ALIGN_ME(VAL) __attribute__((aligned((VAL))))
+
 #ifndef NDEBUG
-    #define ASSERT(EXPR, ...)                                                   \
-        if (!(EXPR))                                                            \
-        {                                                                       \
-            fprintf(stderr, "[ASSERT] %s %s:%d - ", #EXPR, __FILE__, __LINE__); \
-            fprintf(stderr, __VA_ARGS__);                                       \
-            abort();                                                            \
+    #define ASSERT(EXPR, ...)             \
+        if (!(EXPR))                      \
+        {                                 \
+            fprintf(stderr, __VA_ARGS__); \
+            assert(EXPR);                 \
         }
     #define SAFE_FREE(POINTER_TO_DATA)    \
         {                                 \
