@@ -319,17 +319,18 @@ static void draw_triangle(vec4 verts[3], vec2 texcoords[3])
                         _mm_set1_epi32(texw),
                         _mm_cvtps_epi32(pixV))));
 
-            // uint32_t offset[4] = {0};
-            // offset[0]          = (uint32_t)_mm_extract_epi32(texOffset, 0);
-            // offset[1]          = (uint32_t)_mm_extract_epi32(texOffset, 1);
-            // offset[2]          = (uint32_t)_mm_extract_epi32(texOffset, 2);
-            // offset[3]          = (uint32_t)_mm_extract_epi32(texOffset, 3);
-
-            uint32_t *pTexOffset = (uint32_t *)&texOffset; // I think this is unsafe
-
+#if 1
+            uint32_t offset[4] = {0};
+            offset[0]          = (uint32_t)_mm_extract_epi32(texOffset, 0);
+            offset[1]          = (uint32_t)_mm_extract_epi32(texOffset, 1);
+            offset[2]          = (uint32_t)_mm_extract_epi32(texOffset, 2);
+            offset[3]          = (uint32_t)_mm_extract_epi32(texOffset, 3);
+#else
+            uint32_t *pTexOffset    = (uint32_t *)&texOffset; // I think this is unsafe
+#endif
             unsigned char *sample[4];
             for (int i = 0; i < 4; ++i)
-                sample[i] = (texdata + pTexOffset[i]);
+                sample[i] = (texdata + offset[i]);
 
             // A B G R
             __m128i final_colour = _mm_setr_epi8(sample[0][0], sample[0][1], sample[0][2], -1,
