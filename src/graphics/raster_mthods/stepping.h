@@ -130,7 +130,10 @@ static void draw_triangle(const triangle_t t)
             v *= (float)texh - 1;
 
             unsigned char *texcolour   = texdata + (((int)u + texw * (int)v) * texbpp);
-            uint32_t       pixelcolour = (0xFF << 24) + (texcolour[2] << 16) + (texcolour[1] << 8) + (texcolour[0] << 0);
+            uint32_t       pixelcolour = ((uint32_t)0xFFU << 24) |
+                                   ((uint32_t)texcolour[2] << 16) |
+                                   ((uint32_t)texcolour[1] << 8) |
+                                   (uint32_t)texcolour[0];
 
             grafika_setpixel(x, y, pixelcolour);
         }

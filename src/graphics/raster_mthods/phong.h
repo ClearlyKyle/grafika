@@ -21,7 +21,7 @@ static phong_t phong_data           = {0};
 static float  *transformed_vertices = NULL;
 
 #ifdef LH_COORDINATE_SYSTEM
-#    define VP_MATRIX                                                                                  \
+    #define VP_MATRIX                                                                                  \
         (mat4)                                                                                         \
         {                                                                                              \
             {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.0f, 0.0f, 0.0f},                                    \
@@ -30,7 +30,7 @@ static float  *transformed_vertices = NULL;
                 {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 1.0f}, \
         }
 #else
-#    define VP_MATRIX                                                                                  \
+    #define VP_MATRIX                                                                                  \
         (mat4)                                                                                         \
         {                                                                                              \
             {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.0f, 0.0f, 0.0f},                                    \
@@ -288,7 +288,7 @@ static void draw_triangle(vec4 trans[3], vec3 raw[3], vec3 nrm[3], vec2 texcoord
             unsigned char gre = (unsigned char)(frag_colour[1] * 255.0f);
             unsigned char blu = (unsigned char)(frag_colour[2] * 255.0f);
 
-            uint32_t pixelcolour = (0xFF << 24) + (blu << 16) + (gre << 8) + (red << 0);
+            uint32_t pixelcolour = ((uint32_t)0xFFU << 24) | ((uint32_t)blu << 16) | ((uint32_t)gre << 8) | (uint32_t)red;
 
             grafika_setpixel(x, y, pixelcolour);
         }
