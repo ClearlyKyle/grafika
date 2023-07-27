@@ -4,16 +4,16 @@
 #include <math.h>
 
 #if 0
-#    define LH_COORDINATE_SYSTEM
+    #define LH_COORDINATE_SYSTEM
 #else
-#    define RH_COORDINATE_SYSTEM /* Blender uses RH */
+    #define RH_COORDINATE_SYSTEM /* Blender uses RH */
 #endif
 
 // GCC have funny inline rules, this will help
 #if defined(_MSC_VER)
-#    define _INLINE __forceinline
+    #define _INLINE __forceinline
 #else
-#    define _INLINE static inline
+    #define _INLINE static inline
 #endif
 
 #define max(a, b) (((a) > (b)) ? (a) : (b))
