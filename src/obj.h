@@ -43,7 +43,7 @@ typedef struct obj
 
     BoundingBox_t bbox;
 
-    int         num_of_mats;
+    size_t      num_of_mats;
     material_t *mats;
 
     float *pos;
@@ -74,7 +74,7 @@ static void removeNewline(char *str)
         str[length] = '\0'; // Replace newline with null-termination
 }
 
-static void _material_file(char *line, material_t **mat_data, int *num_of_mats)
+static void _material_file(char *line, material_t **mat_data, size_t *num_of_mats)
 {
     char *material_file_path = _read_string_until(line, ' ');
 
@@ -85,7 +85,7 @@ static void _material_file(char *line, material_t **mat_data, int *num_of_mats)
     ASSERT(material_fp, "Error  opening matrial file: %s\n", material_file_path);
 
     material_t *curr_mat    = NULL;
-    int         mat_counter = 0;
+    size_t      mat_counter = 0;
 
     char linebuffer[256]; // Adjust the size
     while (fgets(linebuffer, sizeof(linebuffer), material_fp) != NULL)
@@ -209,11 +209,11 @@ obj_t obj_load(const char *filename)
 
     char linebuffer[MAX_CHAR_LINE_BUFFER]; // Adjust the size
 
-    int posCount    = 0;
-    int texCount    = 0;
-    int normalCount = 0;
-    int frowCount   = 0;
-    int vertCount   = 0;
+    size_t posCount    = 0;
+    size_t texCount    = 0;
+    size_t normalCount = 0;
+    size_t frowCount   = 0;
+    size_t vertCount   = 0;
     while (fgets(linebuffer, sizeof(linebuffer), fp) != NULL)
     {
         if (linebuffer[0] == '#')
@@ -366,7 +366,7 @@ obj_t obj_load(const char *filename)
     printf("verts: %d\n", frowCount * 3);
 
     printf("num mats: %d\n", obj.num_of_mats);
-    for (int i = 0; i < obj.num_of_mats; i++)
+    for (size_t i = 0; i < obj.num_of_mats; i++)
     {
         printf("%s - diffuse %s\n", obj.mats[i].name, obj.mats[i].map_Kd);
         printf("%s - normal  %s\n", obj.mats[i].name, obj.mats[i].map_bump);
@@ -387,7 +387,7 @@ void obj_destroy(obj_t *obj)
     SAFE_FREE(obj->texs);
     SAFE_FREE(obj->indices);
 
-    for (int i = 0; i < obj->num_of_mats; i++)
+    for (size_t i = 0; i < obj->num_of_mats; i++)
     {
         SAFE_FREE(obj->mats[i].name);
         SAFE_FREE(obj->mats[i].map_Kd);
