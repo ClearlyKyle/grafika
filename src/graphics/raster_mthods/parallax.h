@@ -299,7 +299,7 @@ static inline void Steep_Parallax_Mapping(const vec2 tex_coords, const vec3 view
     vec2 prevTCoords; // get texture coordinates before collision (reverse operations)
     prevTCoords[0] = currentTextureCoords[0] + dtex[0];
     prevTCoords[1] = currentTextureCoords[1] + dtex[1];
-
+Offse
     // get height after and before collision for linear interpolation
     float nextH = heightFromTexture - currentLayerHeight;
 

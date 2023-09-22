@@ -7,7 +7,7 @@
 #include "common.h"
 
 #ifdef LH_COORDINATE_SYSTEM
-#    define VP_MATRIX                                                                                  \
+    #define VP_MATRIX                                                                                  \
         (mat4)                                                                                         \
         {                                                                                              \
             {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.0f, 0.0f, 0.0f},                                    \
@@ -16,7 +16,7 @@
                 {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 1.0f}, \
         }
 #else
-#    define VP_MATRIX                                                                                  \
+    #define VP_MATRIX                                                                                  \
         (mat4)                                                                                         \
         {                                                                                              \
             {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.0f, 0.0f, 0.0f},                                    \
@@ -248,9 +248,9 @@ static void draw_triangle(vec4 verts[3], vec2 texcoords[3])
                                              _mm_andnot_ps(Edge2Negative,
                                                            Edge2_AB_Tie_Breaker_Result));
 #else
-            __m128 Edge0FuncMask = _mm_cmplt_ps(Edge_Func0, _mm_setzero_ps());
-            __m128 Edge1FuncMask = _mm_cmplt_ps(Edge_Func1, _mm_setzero_ps());
-            __m128 Edge2FuncMask = _mm_cmplt_ps(Edge_Func2, _mm_setzero_ps());
+            __m128    Edge0FuncMask = _mm_cmplt_ps(Edge_Func0, _mm_setzero_ps());
+            __m128    Edge1FuncMask = _mm_cmplt_ps(Edge_Func1, _mm_setzero_ps());
+            __m128    Edge2FuncMask = _mm_cmplt_ps(Edge_Func2, _mm_setzero_ps());
 #endif
             // Combine resulting masks of all three edges
             __m128 EdgeFuncTestResult = _mm_and_ps(Edge0FuncMask, _mm_and_ps(Edge1FuncMask, Edge2FuncMask));
@@ -281,8 +281,9 @@ static void draw_triangle(vec4 verts[3], vec2 texcoords[3])
             const __m128 sseZInterpolated = Interpolate_Vertex_Value(F, Z);
 
             // Load current depth buffer contents
-            float       *pDepth          = pDepthBuffer + pixel_index;
-            const __m128 sseDepthCurrent = _mm_load_ps(pDepth);
+            // float       *pDepth          = pDepthBuffer + pixel_index;
+            float       *pDepth          = &pDepthBuffer[pixel_index];
+            const __m128 sseDepthCurrent = _mm_loadu_ps(pDepth);
 
             // Perform LESS_THAN_EQUAL depth test
             const __m128 sseDepthRes = _mm_cmple_ps(sseZInterpolated, sseDepthCurrent);

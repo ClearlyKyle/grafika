@@ -20,7 +20,9 @@ typedef struct renderer
     SDL_Renderer *renderer;
     SDL_Texture  *texture;
     uint32_t     *pixels;
-    float         depth_buffer[GRAFIKA_SCREEN_WIDTH * GRAFIKA_SCREEN_HEIGHT];
+    // ALIGN_ME(64)
+    // float  depth_buffer[GRAFIKA_SCREEN_WIDTH * GRAFIKA_SCREEN_HEIGHT];
+    float *depth_buffer;
 } Renderer_t;
 
 static Renderer_t rend = {0};
@@ -69,12 +71,12 @@ static inline void grafika_clear(void)
 {
     memset(rend.pixels, 0, GRAFIKA_SCREEN_WIDTH * GRAFIKA_SCREEN_HEIGHT * GRAFIKA_BPP); // clear pixels
 
-    // for (int i = 0; i < GRAFIKA_SCREEN_WIDTH * GRAFIKA_SCREEN_HEIGHT; ++i) // clear depth buffer
-    //     rend.depth_buffer[i] = 10.0f;
+    // float *end = &rend.depth_buffer[GRAFIKA_SCREEN_WIDTH * GRAFIKA_SCREEN_HEIGHT];
+    // for (float *p = &rend.depth_buffer[0]; p != end; p++) // clear depth buffer
+    //     *p = 10.0f;
 
-    float *end = &rend.depth_buffer[GRAFIKA_SCREEN_WIDTH * GRAFIKA_SCREEN_HEIGHT];
-    for (float *p = rend.depth_buffer; p != end; p++) // clear depth buffer
-        *p = 10.0f;
+    for (size_t i = 0; i < GRAFIKA_SCREEN_WIDTH * GRAFIKA_SCREEN_HEIGHT; i++)
+        rend.depth_buffer[i] = 10.0f;
 }
 
 static void grafika_startup(void)
@@ -110,6 +112,8 @@ static void grafika_startup(void)
 
     rend.pixels = malloc(sizeof(uint32_t) * GRAFIKA_SCREEN_WIDTH * GRAFIKA_SCREEN_HEIGHT);
 
+    rend.depth_buffer = _aligned_malloc(sizeof(float) * GRAFIKA_SCREEN_WIDTH * GRAFIKA_SCREEN_HEIGHT, 64);
+
     SDL_SetRenderTarget(rend.renderer, NULL);
     SDL_SetRenderDrawColor(rend.renderer, 0, 0, 0, 0xFF);
     SDL_SetRenderDrawBlendMode(rend.renderer, SDL_BLENDMODE_BLEND); // enable alpha blending
@@ -120,6 +124,8 @@ static void grafika_shutdown(void)
     SDL_DestroyTexture(rend.texture);
     SDL_DestroyRenderer(rend.renderer);
     SDL_DestroyWindow(rend.window);
+
+    _aligned_free(rend.depth_buffer);
 }
 
 #endif // __GRAFIKA_H__
