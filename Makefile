@@ -8,11 +8,11 @@ CFLAGS := -std=gnu11 -g -mconsole -fopenmp
 CFLAGS += -Wall -Wextra -pedantic
 CFLAGS += -Wunreachable-code -Wshadow -Wimplicit-function-declaration
 CFLAGS += -fstack-protector-all -ftrack-macro-expansion=0 -fno-omit-frame-pointer
-CFLAGS += -msse -mssse3 -msse4.1 -march=native # SIMD things
-#CFLAGS += -O2 -Warray-bounds #for some reason this works to get array access errors
+CFLAGS += -msse4.1 # SIMD things
+CFLAGS += -O2 -Warray-bounds #for some reason this works to get array access errors
 
-# omp has an issue if there is no -fstack-protector
-CFLAGS_RELEASE := -O3 -mconsole -fopenmp -fstack-protector
+# release flags
+CFLAGS_RELEASE := -O3 -DNDEBUG -mconsole -fopenmp -msse4.1
 
 EXEC 		:= ModelViewer#
 OUTPUT_DIR 	:= bin#
