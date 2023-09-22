@@ -1,6 +1,6 @@
 ## Graphika
 
-Graphika utilizes SDL2, MSVC, OpenMP, and SIMD, to facilitate the rasterization of an OBJ model. The list of possible raster methods used are as follows:
+Using SDL2, MSVC, OpenMP, and SIMD, for rasterization of an .OBJ model. The list of possible raster methods used are listed bellow.
 
 <p align="center">
   <img width="75%" src="images/plane_phong.PNG">
