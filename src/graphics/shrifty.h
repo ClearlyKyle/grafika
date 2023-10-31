@@ -23,22 +23,25 @@ static text_t text_state = {0};
 
 static inline void text_startup(int w, int h, int font_size)
 {
-    ASSERT(!TTF_Init(),
-           "TTF failed to initialize: %s\n",
-           TTF_GetError());
+    if (0 != TTF_Init())
+        fprintf(stderr, "TTF failed to initialize: %s\n", TTF_GetError()), abort();
 
     // surface to hold all written text
     text_state.surface = SDL_CreateRGBSurface(0, w, h, 32, 0x000000FF, 0x0000FF00, 0x00FF0000, 0xFF000000);
+    ASSERT(text_state.surface, "Failed to create surface SDL_CreateRGBSurface : %s\n", SDL_GetError());
 
     text_state.font = TTF_OpenFont("res/font/Arial.ttf", font_size);
-    ASSERT(text_state.font, "Failed to load the font, check path!\n");
+    ASSERT(text_state.font, "Failed to load the font : %s\n", TTF_GetError());
 }
 
 static inline void text_shutdown(void)
 {
-    SDL_FreeSurface(text_state.surface);
+    if (text_state.surface)
+        SDL_FreeSurface(text_state.surface);
     if (text_state.font)
         TTF_CloseFont(text_state.font);
+    if (TTF_WasInit())
+        TTF_Quit();
 }
 
 static inline void text_write(int x, int y, const char *text)
@@ -52,6 +55,9 @@ static inline void text_write(int x, int y, const char *text)
     SDL_Rect text_dest = {x, y, text_surface->w, text_surface->h};
 
     SDL_BlitSurface(text_surface, NULL, text_state.surface, &text_dest);
+
+    if (text_surface)
+        SDL_FreeSurface(text_surface);
 }
 
 #endif // __SHRIFTY_H__
