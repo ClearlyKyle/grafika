@@ -5,7 +5,7 @@
 #include <assert.h>
 
 #include "shrifty.h"
-#include "utils.h"
+#include "../utils.h"
 
 #include "SDL2/SDL.h"
 
@@ -81,9 +81,8 @@ static inline void grafika_clear(void)
 
 static void grafika_startup(void)
 {
-    ASSERT(!SDL_Init(SDL_INIT_VIDEO),
-           "SDL failed to initialize: %s\n",
-           SDL_GetError());
+    if (0 != SDL_Init(SDL_INIT_VIDEO))
+        fprintf(stderr, "SDL failed to initialize: %s\n", SDL_GetError()), abort();
 
     rend.window =
         SDL_CreateWindow(
@@ -93,14 +92,14 @@ static void grafika_startup(void)
             512,
             512,
             0);
-
-    ASSERT(rend.window, "failed to create SDL window: %s\n", SDL_GetError());
+    ASSERT(rend.window, "Error - SDL_CreateWindow: %s\n", SDL_GetError());
 
     rend.renderer =
         SDL_CreateRenderer(
             rend.window,
             -1,
             SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+    ASSERT(rend.renderer, "Error - SDL_CreateRenderer: %s\n", SDL_GetError());
 
     rend.texture =
         SDL_CreateTexture(
@@ -109,10 +108,14 @@ static void grafika_startup(void)
             SDL_TEXTUREACCESS_STREAMING,
             GRAFIKA_SCREEN_WIDTH,
             GRAFIKA_SCREEN_HEIGHT);
+    ASSERT(rend.texture, "Error - SDL_CreateTexture: %s\n", SDL_GetError());
 
-    rend.pixels = malloc(sizeof(uint32_t) * GRAFIKA_SCREEN_WIDTH * GRAFIKA_SCREEN_HEIGHT);
+    // rend.pixels = malloc(sizeof(uint32_t) * GRAFIKA_SCREEN_WIDTH * GRAFIKA_SCREEN_HEIGHT);
+    rend.pixels = _aligned_malloc(sizeof(uint32_t) * GRAFIKA_SCREEN_WIDTH * GRAFIKA_SCREEN_HEIGHT, 32);
+    ASSERT(rend.pixels, "Error allocating pixel buffer\n");
 
     rend.depth_buffer = _aligned_malloc(sizeof(float) * GRAFIKA_SCREEN_WIDTH * GRAFIKA_SCREEN_HEIGHT, 64);
+    ASSERT(rend.depth_buffer, "Error allocating depth buffer\n");
 
     SDL_SetRenderTarget(rend.renderer, NULL);
     SDL_SetRenderDrawColor(rend.renderer, 0, 0, 0, 0xFF);
@@ -121,11 +124,18 @@ static void grafika_startup(void)
 
 static void grafika_shutdown(void)
 {
-    SDL_DestroyTexture(rend.texture);
-    SDL_DestroyRenderer(rend.renderer);
-    SDL_DestroyWindow(rend.window);
+    if (rend.texture)
+        SDL_DestroyTexture(rend.texture), rend.texture = NULL;
+    if (rend.renderer)
+        SDL_DestroyRenderer(rend.renderer), rend.renderer = NULL;
+    if (rend.window)
+        SDL_DestroyWindow(rend.window), rend.window = NULL;
+    SDL_Quit();
 
-    _aligned_free(rend.depth_buffer);
+    if (rend.pixels)
+        _aligned_free(rend.pixels), rend.pixels = NULL;
+    if (rend.depth_buffer)
+        _aligned_free(rend.depth_buffer), rend.depth_buffer = NULL;
 }
 
 #endif // __GRAFIKA_H__
