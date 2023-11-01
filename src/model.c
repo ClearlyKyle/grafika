@@ -1,11 +1,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "raster_mthods/edging.h"
-// #include "raster_mthods/stepping.h"
-// #include "raster_mthods/matrix.h"
-// #include "raster_mthods/tiled.h"
-// #include "raster_mthods/avx.h"
+// #include "graphics/raster_mthods/edging.h"
+// #include "graphics/raster_mthods/stepping.h"
+#include "graphics/raster_mthods/matrix.h"
+// #include "graphics/raster_mthods/avx.h"
+// #include "graphics/raster_mthods/phong.h"
+// #include "graphics/raster_mthods/normal_map.h"
+// #include "graphics/raster_mthods/parallax.h"
 
 int main(int argc, char *argv[])
 {
@@ -14,13 +16,15 @@ int main(int argc, char *argv[])
     grafika_startup();
     text_startup(GRAFIKA_SCREEN_WIDTH, GRAFIKA_SCREEN_HEIGHT, 12);
 
-    state.obj = obj_load("res/Cube/cube.obj");
+    // state.obj = obj_load("res/Cube/cube.obj");
     // state.obj = obj_load("plane.obj");
     // state.obj = obj_load("bunny.obj");
-    // state.obj = obj_load("res/Dog House/Doghouse.obj");
+    // state.obj = obj_load("res/Square/square.obj"); // parallax mapping
+    // state.obj = obj_load("res/Wooden Box/wooden crate.obj"); // normal mapping
+    // state.obj = obj_load("res/Dog House/Doghouse.obj");      // normal mapping
     // state.obj = obj_load("res/Lorry/lorry.obj");
     // state.obj = obj_load("res/Camera/Camera.obj");
-    // state.obj = obj_load("res/Plane/Plane.obj");
+    state.obj = obj_load("res/Plane/Plane.obj");
 
     state.tex = tex_load(state.obj.mats[0].map_Kd, true);
 
@@ -76,13 +80,13 @@ int main(int argc, char *argv[])
 
             if (event.type == SDL_MOUSEMOTION && (event.motion.state & SDL_BUTTON(SDL_BUTTON_LEFT)))
             {
-                rotationAngleY += event.motion.xrel * 0.4f;
-                rotationAngleX += event.motion.yrel * 0.4f;
+                rotationAngleY += (float)event.motion.xrel * 0.4f; // Cap these angles?
+                rotationAngleX += (float)event.motion.yrel * 0.4f;
             }
 
             if (event.type == SDL_MOUSEWHEEL)
             {
-                scrollAmount -= event.wheel.y * 0.1f;
+                scrollAmount -= (float)event.wheel.y * 0.1f;
                 if (scrollAmount < 1.5f)
                     scrollAmount = 1.5f;
             }
@@ -120,7 +124,7 @@ int main(int argc, char *argv[])
         TEXT_WRITE_FORMAT(2, 12, "verts : %zu", state.obj.num_verts);
         TEXT_WRITE_FORMAT(2, 22, "cam: (%0.2f, %0.2f, %0.2f)", state.cam_pos[0], state.cam_pos[1], state.cam_pos[2]);
 
-        if (frame_counter == 64)
+        if (frame_counter == 32)
         {
             avg_time               = frame_time_accumulated / frame_counter;
             frame_counter          = 0;
