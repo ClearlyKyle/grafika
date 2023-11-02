@@ -12,14 +12,8 @@ typedef struct text
     SDL_Surface *surface;
 } text_t;
 
-static text_t text_state = {0};
-
-#define TEXT_WRITE_FORMAT(X, Y, ...)                                \
-    {                                                               \
-        char buff[32] = {0}; /*Should this be some global thing? */ \
-        sprintf_s(buff, 32, __VA_ARGS__);                           \
-        text_write((X), (Y), buff);                                 \
-    }
+static char   shrifty_text_buffer[128] = {0}; // should this be static?
+static text_t text_state               = {0};
 
 static inline void text_startup(int w, int h, int font_size)
 {
@@ -44,13 +38,19 @@ static inline void text_shutdown(void)
         TTF_Quit();
 }
 
-static inline void text_write(int x, int y, const char *text)
+static void text_write(int x, int y, const char *formatted_text, ...) ATTRIBATE_FORMAT_PRINTF(3, 4);
+static void text_write(int x, int y, const char *formatted_text, ...)
 {
-    ASSERT(text, "Text is NULL\n");
+    ASSERT(formatted_text, "Text is NULL\n");
+
+    va_list lst;
+    va_start(lst, formatted_text);
+    vsnprintf(shrifty_text_buffer, sizeof(shrifty_text_buffer), formatted_text, lst);
+    va_end(lst);
 
     SDL_Color    text_colour  = {255, 255, 255, 255}; // White color for text
-    SDL_Surface *text_surface = TTF_RenderText_Blended(text_state.font, text, text_colour);
-    ASSERT(text_surface, "TTF_RenderText_Blended FAILED:\nError - %s\ntext  - %s\n", TTF_GetError(), text);
+    SDL_Surface *text_surface = TTF_RenderText_Blended(text_state.font, shrifty_text_buffer, text_colour);
+    ASSERT(text_surface, "TTF_RenderText_Blended FAILED:\nError - %s\ntext  - %s\n", TTF_GetError(), formatted_text);
 
     SDL_Rect text_dest = {x, y, text_surface->w, text_surface->h};
 

@@ -120,9 +120,9 @@ int main(int argc, char *argv[])
 
         TIMER_UPDATE(frame_timer);
 
-        TEXT_WRITE_FORMAT(2, 2, "%0.2fms", avg_time);
-        TEXT_WRITE_FORMAT(2, 12, "verts : %zu", state.obj.num_verts);
-        TEXT_WRITE_FORMAT(2, 22, "cam: (%0.2f, %0.2f, %0.2f)", state.cam_pos[0], state.cam_pos[1], state.cam_pos[2]);
+        text_write(2, 2, "%0.2fms", avg_time);
+        text_write(2, 12, "verts : %zu", state.obj.num_verts);
+        text_write(2, 22, "cam: (%0.2f, %0.2f, %0.2f)", state.cam_pos[0], state.cam_pos[1], state.cam_pos[2]);
 
         if (frame_counter == 32)
         {
