@@ -122,9 +122,9 @@ static void draw_triangle(const triangle_t t)
 
             // Evaluate edge functions at current fragment
             // E(x + s, y + t) = E(x, y) + sa + tb,
-            const float edgeFuncTR0 = edgeFunc0 + ((E0[0] * step_x) + (E0[1] * step_y));
-            const float edgeFuncTR1 = edgeFunc1 + ((E1[0] * step_x) + (E1[1] * step_y));
-            const float edgeFuncTR2 = edgeFunc2 + ((E2[0] * step_x) + (E2[1] * step_y));
+            const float edgeFuncTR0 = edgeFunc0 + ((E0[0] * (float)step_x) + (E0[1] * (float)step_y));
+            const float edgeFuncTR1 = edgeFunc1 + ((E1[0] * (float)step_x) + (E1[1] * (float)step_y));
+            const float edgeFuncTR2 = edgeFunc2 + ((E2[0] * (float)step_x) + (E2[1] * (float)step_y));
 
             // Check if the current point is inside a traingle using Tie breaker rules
             const bool TRForEdge0 = Edge_Tie_Breaker(edgeFuncTR0, pre_comp_tie_E0);

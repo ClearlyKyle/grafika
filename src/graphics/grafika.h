@@ -33,7 +33,7 @@ static void grafika_present(void)
     int   pitch = 0;
     SDL_LockTexture(rend.texture, NULL, &px, &pitch);
     {
-        memcpy_s(px, GRAFIKA_SCREEN_HEIGHT * pitch,
+        memcpy_s(px, (size_t)(GRAFIKA_SCREEN_HEIGHT * pitch),
                  rend.pixels, GRAFIKA_SCREEN_WIDTH * GRAFIKA_SCREEN_HEIGHT * sizeof(uint32_t));
     }
     SDL_UnlockTexture(rend.texture);

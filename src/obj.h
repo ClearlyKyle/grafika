@@ -359,13 +359,13 @@ obj_t obj_load(const char *filename)
 
     obj.bbox = bbox;
 
-    printf("poss : %d\n", posCount);
-    printf("norms: %d\n", normalCount);
-    printf("texs : %d\n", texCount);
-    printf("faces: %d\n", frowCount);
-    printf("verts: %d\n", frowCount * 3);
+    printf("poss : %zu\n", posCount);
+    printf("norms: %zu\n", normalCount);
+    printf("texs : %zu\n", texCount);
+    printf("faces: %zu\n", frowCount);
+    printf("verts: %zu\n", frowCount * 3);
 
-    printf("num mats: %d\n", obj.num_of_mats);
+    printf("num mats: %zu\n", obj.num_of_mats);
     for (size_t i = 0; i < obj.num_of_mats; i++)
     {
         printf("%s - diffuse %s\n", obj.mats[i].name, obj.mats[i].map_Kd);
