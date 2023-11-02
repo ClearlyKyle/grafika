@@ -82,7 +82,7 @@ EXEC 		:= ModelViewer#
 OUTPUT_DIR 	:= bin#
 SRC_DIR 	:= src#
 
-INC_DIRS 	:= ./src ./deps ./src/graphics/#
+INC_DIRS 	:= ./src ./src/graphics/#
 
 # pkg-config Library names
 LIB_NAMES := sdl2 sdl2_ttf sdl2_image
