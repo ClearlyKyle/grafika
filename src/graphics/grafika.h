@@ -20,9 +20,7 @@ typedef struct renderer
     SDL_Renderer *renderer;
     SDL_Texture  *texture;
     uint32_t     *pixels;
-    // ALIGN_ME(64)
-    // float  depth_buffer[GRAFIKA_SCREEN_WIDTH * GRAFIKA_SCREEN_HEIGHT];
-    float *depth_buffer;
+    float        *depth_buffer;
 } Renderer_t;
 
 static Renderer_t rend = {0};
@@ -110,7 +108,6 @@ static void grafika_startup(void)
             GRAFIKA_SCREEN_HEIGHT);
     ASSERT(rend.texture, "Error - SDL_CreateTexture: %s\n", SDL_GetError());
 
-    // rend.pixels = malloc(sizeof(uint32_t) * GRAFIKA_SCREEN_WIDTH * GRAFIKA_SCREEN_HEIGHT);
     rend.pixels = _aligned_malloc(sizeof(uint32_t) * GRAFIKA_SCREEN_WIDTH * GRAFIKA_SCREEN_HEIGHT, 32);
     ASSERT(rend.pixels, "Error allocating pixel buffer\n");
 
