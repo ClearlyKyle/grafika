@@ -91,7 +91,7 @@ static void draw_triangle(const triangle_t t)
     }
 
     // calculate bounding rectangle
-    int AABB[4];
+    int AABB[4] = {0};
     AABB_make(proj, AABB);
 
     // Evaluaate edge equation at first tile origin

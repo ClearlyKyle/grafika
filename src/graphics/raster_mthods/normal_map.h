@@ -23,23 +23,23 @@ static nrm_map_t normal_mapping_data  = {0};
 static float    *transformed_vertices = NULL;
 
 #ifdef LH_COORDINATE_SYSTEM
-    #define VP_MATRIX                                                                                  \
-        (mat4)                                                                                         \
-        {                                                                                              \
-            {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.0f, 0.0f, 0.0f},                                    \
-                {0.0f, -0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 0.0f},                              \
-                {0.0f, 0.0f, 1.0f, 0.0f},                                                              \
-                {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 1.0f}, \
-        }
+#define VP_MATRIX                                                                                  \
+    (mat4)                                                                                         \
+    {                                                                                              \
+        {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.0f, 0.0f, 0.0f},                                    \
+            {0.0f, -0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 0.0f},                              \
+            {0.0f, 0.0f, 1.0f, 0.0f},                                                              \
+            {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 1.0f}, \
+    }
 #else
-    #define VP_MATRIX                                                                                  \
-        (mat4)                                                                                         \
-        {                                                                                              \
-            {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.0f, 0.0f, 0.0f},                                    \
-                {0.0f, 0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 0.0f},                               \
-                {0.0f, 0.0f, 1.0f, 0.0f},                                                              \
-                {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 1.0f}, \
-        }
+#define VP_MATRIX                                                                                  \
+    (mat4)                                                                                         \
+    {                                                                                              \
+        {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.0f, 0.0f, 0.0f},                                    \
+            {0.0f, 0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 0.0f},                               \
+            {0.0f, 0.0f, 1.0f, 0.0f},                                                              \
+            {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 1.0f}, \
+    }
 #endif
 
 static inline bool Tie_Breaker_AB_Test(const vec3 E)
@@ -247,13 +247,13 @@ static void draw_triangle(vec4 trans[3], vec3 raw[3], vec3 nrm[3], vec2 texcoord
     }
 
     // get world space vertex positions
-    vec4 ws[3];
+    vec4 ws[3] = {0};
     m4_mul_v4(state.model, (vec4){raw[0][0], raw[0][1], raw[0][2], 1.0f}, ws[0]);
     m4_mul_v4(state.model, (vec4){raw[1][0], raw[1][1], raw[1][2], 1.0f}, ws[1]);
     m4_mul_v4(state.model, (vec4){raw[2][0], raw[2][1], raw[2][2], 1.0f}, ws[2]);
 
     // calculate bounding rectangle
-    int AABB[4];
+    int AABB[4] = {0};
     AABB_make(proj, AABB);
 
     // normal mapping setup
@@ -301,9 +301,9 @@ static void draw_triangle(vec4 trans[3], vec3 raw[3], vec3 nrm[3], vec2 texcoord
 
             // Evaluate edge functions at current fragment
             // E(x + s, y + t) = E(x, y) + sa + tb,
-            const float edgeFuncTR0 = edgeFunc0 + ((E0[0] * step_x) + (E0[1] * step_y));
-            const float edgeFuncTR1 = edgeFunc1 + ((E1[0] * step_x) + (E1[1] * step_y));
-            const float edgeFuncTR2 = edgeFunc2 + ((E2[0] * step_x) + (E2[1] * step_y));
+            const float edgeFuncTR0 = edgeFunc0 + ((E0[0] * (float)step_x) + (E0[1] * (float)step_y));
+            const float edgeFuncTR1 = edgeFunc1 + ((E1[0] * (float)step_x) + (E1[1] * (float)step_y));
+            const float edgeFuncTR2 = edgeFunc2 + ((E2[0] * (float)step_x) + (E2[1] * (float)step_y));
 
             // Check if the current point is inside a traingle using Tie breaker rules
             const bool TRForEdge0 = Edge_Tie_Breaker(edgeFuncTR0, pre_comp_tie_E0);
@@ -366,12 +366,12 @@ static void draw_triangle(vec4 trans[3], vec3 raw[3], vec3 nrm[3], vec2 texcoord
 
             unsigned char *texcolour = texdata + (((int)u + texw * (int)v) * texbpp);
 
-            vec3 diffuse_colour;
-            diffuse_colour[0] = texcolour[0] / 255.0f;
-            diffuse_colour[1] = texcolour[1] / 255.0f;
-            diffuse_colour[2] = texcolour[2] / 255.0f;
+            vec3 diffuse_colour = {0};
+            diffuse_colour[0]   = texcolour[0] / 255.0f;
+            diffuse_colour[1]   = texcolour[1] / 255.0f;
+            diffuse_colour[2]   = texcolour[2] / 255.0f;
 
-            vec3 frag_colour;
+            vec3 frag_colour = {0};
             phong_lighting(diffuse_colour, frag_pos, cam_pos, light_pos, frag_nrm, frag_colour);
 
             unsigned char red = (unsigned char)(frag_colour[0] * 255.0f);
@@ -392,10 +392,10 @@ static void draw_onexit(void)
 
 static void draw_object(void)
 {
-    mat4 cum_matrix;
+    mat4 cum_matrix = {0};
     m4_mul_m4(VP_MATRIX, state.MVP, cum_matrix);
 
-    mat4 tmp, nrm_mat;
+    mat4 tmp = {0}, nrm_mat = {0};
     m4_inv(state.model, tmp);
     m4_transpose(tmp, nrm_mat);
     m3_from_m4(nrm_mat, normal_mapping_data.nrm_matrix);
@@ -405,7 +405,7 @@ static void draw_object(void)
     if (!transformed_vertices)
     {
         transformed_vertices        = malloc(sizeof(vec4) * object.num_pos);
-        normal_mapping_data.nrm_tex = tex_load(object.mats[0].map_bump, true);
+        normal_mapping_data.nrm_tex = tex_load(object.mats[0].map_bump);
     }
 
     float *pos = object.pos;
@@ -431,10 +431,10 @@ static void draw_object(void)
 #pragma omp for
         for (size_t i = 0; i < object.num_f_rows; ++i)
         {
-            vec4 trans[3];
-            vec3 raw[3];
-            vec3 nrm[3];
-            vec2 texcoords[3];
+            vec4 trans[3]     = {0};
+            vec3 raw[3]       = {0};
+            vec3 nrm[3]       = {0};
+            vec2 texcoords[3] = {0};
 
             for (size_t j = 0; j < 3; ++j)
             {

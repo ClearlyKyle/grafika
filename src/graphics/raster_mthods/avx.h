@@ -7,23 +7,23 @@
 #include "common.h"
 
 #ifdef LH_COORDINATE_SYSTEM
-    #define VP_MATRIX                                                                                  \
-        (mat4)                                                                                         \
-        {                                                                                              \
-            {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.0f, 0.0f, 0.0f},                                    \
-                {0.0f, -0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 0.0f},                              \
-                {0.0f, 0.0f, 1.0f, 0.0f},                                                              \
-                {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 1.0f}, \
-        }
+#define VP_MATRIX                                                                                  \
+    (mat4)                                                                                         \
+    {                                                                                              \
+        {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.0f, 0.0f, 0.0f},                                    \
+            {0.0f, -0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 0.0f},                              \
+            {0.0f, 0.0f, 1.0f, 0.0f},                                                              \
+            {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 1.0f}, \
+    }
 #else
-    #define VP_MATRIX                                                                                  \
-        (mat4)                                                                                         \
-        {                                                                                              \
-            {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.0f, 0.0f, 0.0f},                                    \
-                {0.0f, 0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 0.0f},                               \
-                {0.0f, 0.0f, 1.0f, 0.0f},                                                              \
-                {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 1.0f}, \
-        }
+#define VP_MATRIX                                                                                  \
+    (mat4)                                                                                         \
+    {                                                                                              \
+        {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.0f, 0.0f, 0.0f},                                    \
+            {0.0f, 0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 0.0f},                               \
+            {0.0f, 0.0f, 1.0f, 0.0f},                                                              \
+            {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 1.0f}, \
+    }
 #endif
 
 static float *transformed_vertices = NULL;
@@ -125,14 +125,18 @@ static void draw_triangle(vec4 verts[3], vec2 texcoords[3])
     }
 
     /* Precompute constants */
-    const int screenWidthMinusOne  = GRAFIKA_SCREEN_WIDTH - 1;
-    const int screenHeightMinusOne = GRAFIKA_SCREEN_HEIGHT - 1;
+    const int screen_width_minus_one  = GRAFIKA_SCREEN_WIDTH - 1;
+    const int screen_height_minus_one = GRAFIKA_SCREEN_HEIGHT - 1;
 
     /* Clamp values to valid range */
-    int minX = max(0, min((int)fminX, screenWidthMinusOne));
-    int minY = max(0, min((int)fminY, screenHeightMinusOne));
-    int maxX = max(0, min((int)fmaxX, screenWidthMinusOne));
-    int maxY = max(0, min((int)fmaxY, screenHeightMinusOne));
+    int minX = max(0, min((int)fminX, screen_width_minus_one));
+    int minY = max(0, min((int)fminY, screen_height_minus_one));
+    int maxX = max(0, min((int)fmaxX, screen_width_minus_one));
+    int maxY = max(0, min((int)fmaxY, screen_height_minus_one));
+
+    // align to multiples of 4 for better simd'ing
+    minX = minX - (minX & (4 - 1)); // p & (a - 1) = p % a
+    maxX = maxX + (minX & (4 - 1));
 
     // Setup texture coordinates
     __m128 U[3], V[3], Z[3];
@@ -248,9 +252,9 @@ static void draw_triangle(vec4 verts[3], vec2 texcoords[3])
                                              _mm_andnot_ps(Edge2Negative,
                                                            Edge2_AB_Tie_Breaker_Result));
 #else
-            __m128    Edge0FuncMask = _mm_cmplt_ps(Edge_Func0, _mm_setzero_ps());
-            __m128    Edge1FuncMask = _mm_cmplt_ps(Edge_Func1, _mm_setzero_ps());
-            __m128    Edge2FuncMask = _mm_cmplt_ps(Edge_Func2, _mm_setzero_ps());
+            __m128 Edge0FuncMask = _mm_cmplt_ps(Edge_Func0, _mm_setzero_ps());
+            __m128 Edge1FuncMask = _mm_cmplt_ps(Edge_Func1, _mm_setzero_ps());
+            __m128 Edge2FuncMask = _mm_cmplt_ps(Edge_Func2, _mm_setzero_ps());
 #endif
             // Combine resulting masks of all three edges
             __m128 EdgeFuncTestResult = _mm_and_ps(Edge0FuncMask, _mm_and_ps(Edge1FuncMask, Edge2FuncMask));
@@ -275,7 +279,7 @@ static void draw_triangle(vec4 verts[3], vec2 texcoords[3])
             F[1] = _mm_mul_ps(F[1], r);
             F[2] = _mm_mul_ps(F[2], r);
 
-            const size_t pixel_index = (pix_y * GRAFIKA_SCREEN_WIDTH + pix_x);
+            const size_t pixel_index = (const size_t)(pix_y * GRAFIKA_SCREEN_WIDTH + pix_x);
 
             // Interpolate depth values prior to depth test
             const __m128 sseZInterpolated = Interpolate_Vertex_Value(F, Z);
@@ -320,18 +324,18 @@ static void draw_triangle(vec4 verts[3], vec2 texcoords[3])
                         _mm_set1_epi32(texw),
                         _mm_cvtps_epi32(pixV))));
 
-#if 1
+#if 0
             uint32_t offset[4] = {0};
             offset[0]          = (uint32_t)_mm_extract_epi32(texOffset, 0);
             offset[1]          = (uint32_t)_mm_extract_epi32(texOffset, 1);
             offset[2]          = (uint32_t)_mm_extract_epi32(texOffset, 2);
             offset[3]          = (uint32_t)_mm_extract_epi32(texOffset, 3);
 #else
-            uint32_t *pTexOffset    = (uint32_t *)&texOffset; // I think this is unsafe
+            uint32_t *offset = (uint32_t *)&texOffset; // I think this is unsafe
 #endif
-            unsigned char *sample[4];
+            char *sample[4] = {0};
             for (int i = 0; i < 4; ++i)
-                sample[i] = (texdata + offset[i]);
+                sample[i] = (char *)(texdata + offset[i]);
 
             // A B G R
             __m128i final_colour = _mm_setr_epi8(sample[0][0], sample[0][1], sample[0][2], -1,
@@ -367,7 +371,7 @@ static void draw_onexit(void)
 
 static void draw_object(void)
 {
-    mat4 cumMatrix;
+    mat4 cumMatrix = {0};
     m4_mul_m4(VP_MATRIX, state.MVP, cumMatrix);
 
     const obj_t object = state.obj;
@@ -396,8 +400,8 @@ static void draw_object(void)
 #pragma omp for
         for (size_t i = 0; i < object.num_f_rows; ++i)
         {
-            vec4 vertices[3];
-            vec2 texcoords[3];
+            vec4 vertices[3]  = {0};
+            vec2 texcoords[3] = {0};
 
             for (size_t j = 0; j < 3; ++j)
             {

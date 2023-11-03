@@ -24,7 +24,7 @@ static void draw_triangle(const triangle_t t)
     }
 
     // perspective division (clip to ndc)
-    vec3 ndc[3], w_vals;
+    vec3 ndc[3] = {0}, w_vals = {0};
     for (size_t i = 0; i < 3; i++)
     {
         w_vals[i] = 1.0f / clipspace[i][3]; // 1.0f / w
@@ -34,7 +34,7 @@ static void draw_triangle(const triangle_t t)
     }
 
     // back face culling (surface normal)
-    vec3 sub10, sub20, normal;
+    vec3 sub10 = {0}, sub20 = {0}, normal = {0};
     v3_sub(ndc[1], ndc[0], sub10);
     v3_sub(ndc[2], ndc[0], sub20);
     v3_cross(sub10, sub20, normal);
@@ -50,7 +50,7 @@ static void draw_triangle(const triangle_t t)
     }
 
     // calculate bounding rectangle
-    int AABB[4];
+    int AABB[4] = {0};
     AABB_make(screenspace, AABB);
 
     const float dY0 = screenspace[2][1] - screenspace[1][1], dX0 = screenspace[1][0] - screenspace[2][0];

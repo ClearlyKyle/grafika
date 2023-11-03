@@ -26,7 +26,7 @@ static void draw_triangle(const triangle_t t)
     }
 
     // perspective division (clip to ndc)
-    vec3 ndc[3], w_vals;
+    vec3 ndc[3] = {0}, w_vals = {0};
     for (size_t i = 0; i < 3; i++)
     {
         w_vals[i] = 1.0f / clipspace[i][3]; // 1.0f / w
@@ -36,7 +36,7 @@ static void draw_triangle(const triangle_t t)
     }
 
     // back face culling (surface normal)
-    vec3 sub10, sub20, normal;
+    vec3 sub10 = {0}, sub20 = {0}, normal = {0};
     v3_sub(ndc[1], ndc[0], sub10);
     v3_sub(ndc[2], ndc[0], sub20);
     v3_cross(sub10, sub20, normal);
@@ -51,7 +51,7 @@ static void draw_triangle(const triangle_t t)
     }
 
     // calculate bounding rectangle
-    int AABB[4];
+    int AABB[4] = {0};
     AABB_make(screenspace, AABB);
 
     // printf("AABB - minX %d, minY %d, maxX %d, maxY %d\n", AABB[0], AABB[1], AABB[2], AABB[3]);
@@ -115,8 +115,7 @@ static void draw_triangle(const triangle_t t)
             u *= (float)texw - 1;
             v *= (float)texh - 1;
 
-            unsigned char *texcolour   = texdata + (((int)u + texw * (int)v) * texbpp);
-            uint32_t       pixelcolour = (0xFF << 24) + (texcolour[2] << 16) + (texcolour[1] << 8) + (texcolour[0] << 0);
+            unsigned char *texcolour = texdata + (((int)u + texw * (int)v) * texbpp);
 
             uint32_t pixelcolour = ((uint32_t)0xFFU << 24) |
                                    ((uint32_t)texcolour[2] << 16) |

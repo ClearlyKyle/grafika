@@ -48,8 +48,8 @@ CFLAGS += -Wshadow
 CFLAGS += -Wstrict-overflow=4
 CFLAGS += -Wswitch-default
 CFLAGS += -Wswitch-enum
-CFLAGS += -Wcast-align=strict
 CFLAGS += -Wjump-misses-init
+#CFLAGS += -Wcast-align=strict
 #CFLAGS += -Wstack-usage=<byte-size> # Warn if stack usage might exceed <byte-size>
 #CFLAGS += -Wstrict-prototypes
 #CFLAGS += -Wundef

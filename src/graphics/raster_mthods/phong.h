@@ -21,23 +21,23 @@ static phong_t phong_data           = {0};
 static float  *transformed_vertices = NULL;
 
 #ifdef LH_COORDINATE_SYSTEM
-    #define VP_MATRIX                                                                                  \
-        (mat4)                                                                                         \
-        {                                                                                              \
-            {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.0f, 0.0f, 0.0f},                                    \
-                {0.0f, -0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 0.0f},                              \
-                {0.0f, 0.0f, 1.0f, 0.0f},                                                              \
-                {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 1.0f}, \
-        }
+#define VP_MATRIX                                                                                  \
+    (mat4)                                                                                         \
+    {                                                                                              \
+        {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.0f, 0.0f, 0.0f},                                    \
+            {0.0f, -0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 0.0f},                              \
+            {0.0f, 0.0f, 1.0f, 0.0f},                                                              \
+            {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 1.0f}, \
+    }
 #else
-    #define VP_MATRIX                                                                                  \
-        (mat4)                                                                                         \
-        {                                                                                              \
-            {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.0f, 0.0f, 0.0f},                                    \
-                {0.0f, 0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 0.0f},                               \
-                {0.0f, 0.0f, 1.0f, 0.0f},                                                              \
-                {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 1.0f}, \
-        }
+#define VP_MATRIX                                                                                  \
+    (mat4)                                                                                         \
+    {                                                                                              \
+        {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.0f, 0.0f, 0.0f},                                    \
+            {0.0f, 0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 0.0f},                               \
+            {0.0f, 0.0f, 1.0f, 0.0f},                                                              \
+            {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 1.0f}, \
+    }
 #endif
 
 static inline bool Tie_Breaker_AB_Test(const vec3 E)
@@ -71,7 +71,7 @@ static inline float calculate_specular_amount(vec3 L, vec3 E, vec3 N, const floa
 #if 0
     {
         // BLINN PHONG
-        vec3 halfway_direction;
+        vec3 halfway_direction = {0};
         v3_add(L, E, halfway_direction);
         v3_norm(halfway_direction);
 
@@ -81,7 +81,7 @@ static inline float calculate_specular_amount(vec3 L, vec3 E, vec3 N, const floa
 #else
     {
         // Regular PHONG
-        vec3 R;
+        vec3 R = {0};
         v3_reflect(L, N, R);
         R[0] = -R[0];
         R[1] = -R[1];
@@ -107,18 +107,18 @@ static inline void phong_lighting(vec3 diff_colour, vec3 frag_pos, vec3 N, vec3 
     vec3 E = {0.0f, 0.0f, 1.0f};
 
     // Ambient Term:
-    vec3  Iamb;
+    vec3  Iamb           = {0};
     float ambient_amount = PHONG_AMBI_AMOUNT;
     v3_scale(diff_colour, ambient_amount, Iamb);
 
     // Diffuse Term:
-    vec3        Idiff;
+    vec3        Idiff          = {0};
     const float dot_product    = v3_dot(L, N);
     const float diffuse_amount = fmaxf(dot_product, 0.0f);
     v3_scale(diff_colour, diffuse_amount, Idiff);
 
     // Specular Term:
-    vec3        Ispec;
+    vec3        Ispec           = {0};
     const float specular_amount = calculate_specular_amount(L, E, N, PHONG_SHININESS);
     v3_broadcast(Ispec, specular_amount * PHONG_SPEC_AMOUNT);
 
@@ -172,19 +172,19 @@ static void draw_triangle(vec4 trans[3], vec3 raw[3], vec3 nrm[3], vec2 texcoord
         the model matrix having the ability to scale and scew the model, and our
         normal do not like this */
     // NOTE: This might need to be a m3 * v3...
-    vec3 new_nrm[3];
+    vec3 new_nrm[3] = {0};
     m3_mul_v3(phong_data.nrm_matrix, nrm[0], new_nrm[0]);
     m3_mul_v3(phong_data.nrm_matrix, nrm[1], new_nrm[1]);
     m3_mul_v3(phong_data.nrm_matrix, nrm[2], new_nrm[2]);
 
     // get world space vertex positions
-    vec4 ws[3];
+    vec4 ws[3] = {0};
     m4_mul_v4(state.model, (vec4){raw[0][0], raw[0][1], raw[0][2], 1.0f}, ws[0]);
     m4_mul_v4(state.model, (vec4){raw[1][0], raw[1][1], raw[1][2], 1.0f}, ws[1]);
     m4_mul_v4(state.model, (vec4){raw[2][0], raw[2][1], raw[2][2], 1.0f}, ws[2]);
 
     // calculate bounding rectangle
-    int AABB[4];
+    int AABB[4] = {0};
     AABB_make(proj, AABB);
 
     // Evaluaate edge equation at first tile origin
@@ -215,9 +215,9 @@ static void draw_triangle(vec4 trans[3], vec3 raw[3], vec3 nrm[3], vec2 texcoord
 
             // Evaluate edge functions at current fragment
             // E(x + s, y + t) = E(x, y) + sa + tb,
-            const float edgeFuncTR0 = edgeFunc0 + ((E0[0] * step_x) + (E0[1] * step_y));
-            const float edgeFuncTR1 = edgeFunc1 + ((E1[0] * step_x) + (E1[1] * step_y));
-            const float edgeFuncTR2 = edgeFunc2 + ((E2[0] * step_x) + (E2[1] * step_y));
+            const float edgeFuncTR0 = edgeFunc0 + ((E0[0] * (float)step_x) + (E0[1] * (float)step_y));
+            const float edgeFuncTR1 = edgeFunc1 + ((E1[0] * (float)step_x) + (E1[1] * (float)step_y));
+            const float edgeFuncTR2 = edgeFunc2 + ((E2[0] * (float)step_x) + (E2[1] * (float)step_y));
 
             // Check if the current point is inside a traingle using Tie breaker rules
             const bool TRForEdge0 = Edge_Tie_Breaker(edgeFuncTR0, pre_comp_tie_E0);
@@ -281,7 +281,7 @@ static void draw_triangle(vec4 trans[3], vec3 raw[3], vec3 nrm[3], vec2 texcoord
             diffuse_colour[1] = texcolour[1] / 255.0f;
             diffuse_colour[2] = texcolour[2] / 255.0f;
 
-            vec3 frag_colour;
+            vec3 frag_colour = {0};
             phong_lighting(diffuse_colour, frag_pos, frag_nrm, frag_colour);
 
             unsigned char red = (unsigned char)(frag_colour[0] * 255.0f);
@@ -302,10 +302,10 @@ static void draw_onexit(void)
 
 static void draw_object(void)
 {
-    mat4 cum_matrix;
+    mat4 cum_matrix = {0};
     m4_mul_m4(VP_MATRIX, state.MVP, cum_matrix);
 
-    mat4 tmp, nrm_mat;
+    mat4 tmp = {0}, nrm_mat = {0};
     m4_inv(state.model, tmp);
     m4_transpose(tmp, nrm_mat);
     m3_from_m4(nrm_mat, phong_data.nrm_matrix);
@@ -338,10 +338,10 @@ static void draw_object(void)
 #pragma omp for
         for (size_t i = 0; i < object.num_f_rows; ++i)
         {
-            vec4 trans[3];
-            vec3 raw[3];
-            vec3 nrm[3];
-            vec2 texcoords[3];
+            vec4 trans[3]     = {0};
+            vec3 raw[3]       = {0};
+            vec3 nrm[3]       = {0};
+            vec2 texcoords[3] = {0};
 
             for (size_t j = 0; j < 3; ++j)
             {

@@ -28,23 +28,23 @@ static para_map_t parallax_mapping_data = {0};
 static float     *transformed_vertices  = NULL;
 
 #ifdef LH_COORDINATE_SYSTEM
-    #define VP_MATRIX                                                                                  \
-        (mat4)                                                                                         \
-        {                                                                                              \
-            {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.0f, 0.0f, 0.0f},                                    \
-                {0.0f, -0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 0.0f},                              \
-                {0.0f, 0.0f, 1.0f, 0.0f},                                                              \
-                {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 1.0f}, \
-        }
+#define VP_MATRIX                                                                                  \
+    (mat4)                                                                                         \
+    {                                                                                              \
+        {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.0f, 0.0f, 0.0f},                                    \
+            {0.0f, -0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 0.0f},                              \
+            {0.0f, 0.0f, 1.0f, 0.0f},                                                              \
+            {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 1.0f}, \
+    }
 #else
-    #define VP_MATRIX                                                                                  \
-        (mat4)                                                                                         \
-        {                                                                                              \
-            {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.0f, 0.0f, 0.0f},                                    \
-                {0.0f, 0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 0.0f},                               \
-                {0.0f, 0.0f, 1.0f, 0.0f},                                                              \
-                {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 1.0f}, \
-        }
+#define VP_MATRIX                                                                                  \
+    (mat4)                                                                                         \
+    {                                                                                              \
+        {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.0f, 0.0f, 0.0f},                                    \
+            {0.0f, 0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 0.0f},                               \
+            {0.0f, 0.0f, 1.0f, 0.0f},                                                              \
+            {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 1.0f}, \
+    }
 #endif
 
 static inline bool Tie_Breaker_AB_Test(const vec3 E)
@@ -299,9 +299,9 @@ static inline void Steep_Parallax_Mapping(const vec2 tex_coords, const vec3 view
     vec2 prevTCoords; // get texture coordinates before collision (reverse operations)
     prevTCoords[0] = currentTextureCoords[0] + dtex[0];
     prevTCoords[1] = currentTextureCoords[1] + dtex[1];
-Offse
-    // get height after and before collision for linear interpolation
-    float nextH = heightFromTexture - currentLayerHeight;
+    Offse
+        // get height after and before collision for linear interpolation
+        float nextH = heightFromTexture - currentLayerHeight;
 
     disp_colour = tex_get_pos(&parallax_mapping_data.disp_tex, prevTCoords[0], prevTCoords[1]);
     float prevH = (float)disp_colour[0] / 255.0f - currentLayerHeight + layerHeight;
@@ -361,13 +361,13 @@ static void draw_triangle(vec4 trans[3], vec3 raw[3], vec3 nrm[3], vec2 texcoord
     }
 
     // get world space vertex positions
-    vec4 ws[3];
+    vec4 ws[3] = {0};
     m4_mul_v4(state.model, (vec4){raw[0][0], raw[0][1], raw[0][2], 1.0f}, ws[0]);
     m4_mul_v4(state.model, (vec4){raw[1][0], raw[1][1], raw[1][2], 1.0f}, ws[1]);
     m4_mul_v4(state.model, (vec4){raw[2][0], raw[2][1], raw[2][2], 1.0f}, ws[2]);
 
     // calculate bounding rectangle
-    int AABB[4];
+    int AABB[4] = {0};
     AABB_make(proj, AABB);
 
     // normal mapping setup
@@ -488,7 +488,7 @@ static void draw_triangle(vec4 trans[3], vec3 raw[3], vec3 nrm[3], vec2 texcoord
             diffuse_colour[1] = texcolour[1] / 255.0f;
             diffuse_colour[2] = texcolour[2] / 255.0f;
 
-            vec3 frag_colour;
+            vec3 frag_colour = {0};
             phong_lighting(diffuse_colour, frag_pos, view_direction, light_pos, frag_nrm, frag_colour);
 
             if (frag_colour[0] > 1.0f || frag_colour[1] > 1.0f || frag_colour[2] > 1.0f)
@@ -513,14 +513,14 @@ static void draw_onexit(void)
 
 static void draw_object(void)
 {
-    STATIC_ASSERT(PHONG_AMBI_AMOUNT >= 0.0f && PHONG_AMBI_AMOUNT <= 1.0f, "Ambient amount should be between 0.0f and 1.0f");
-    STATIC_ASSERT(PHONG_SPEC_AMOUNT >= 0.0f && PHONG_SPEC_AMOUNT <= 1.0f, "Specular amount should be between 0.0f and 1.0f");
-    STATIC_ASSERT(PHONG_SHININESS > 0.0f, "Shininess amount should be > 0.0f");
+    ASSERT(PHONG_AMBI_AMOUNT >= 0.0f && PHONG_AMBI_AMOUNT <= 1.0f, "Ambient amount should be between 0.0f and 1.0f");
+    ASSERT(PHONG_SPEC_AMOUNT >= 0.0f && PHONG_SPEC_AMOUNT <= 1.0f, "Specular amount should be between 0.0f and 1.0f");
+    ASSERT(PHONG_SHININESS > 0.0f, "Shininess amount should be > 0.0f");
 
-    mat4 cum_matrix;
+    mat4 cum_matrix = {0};
     m4_mul_m4(VP_MATRIX, state.MVP, cum_matrix);
 
-    mat4 tmp, nrm_mat;
+    mat4 tmp = {0}, nrm_mat = {0};
     m4_inv(state.model, tmp);
     m4_transpose(tmp, nrm_mat);
     m3_from_m4(nrm_mat, parallax_mapping_data.nrm_matrix);
@@ -530,8 +530,8 @@ static void draw_object(void)
     if (!transformed_vertices)
     {
         transformed_vertices           = malloc(sizeof(vec4) * object.num_pos);
-        parallax_mapping_data.nrm_tex  = tex_load(object.mats[0].map_bump, true);
-        parallax_mapping_data.disp_tex = tex_load(object.mats[0].disp, true);
+        parallax_mapping_data.nrm_tex  = tex_load(object.mats[0].map_bump);
+        parallax_mapping_data.disp_tex = tex_load(object.mats[0].disp);
     }
 
     float *pos = object.pos;
@@ -557,10 +557,10 @@ static void draw_object(void)
         // #pragma omp for
         for (size_t i = 0; i < object.num_f_rows; ++i)
         {
-            vec4 trans[3];
-            vec3 raw[3];
-            vec3 nrm[3];
-            vec2 texcoords[3];
+            vec4 trans[3]     = {0};
+            vec3 raw[3]       = {0};
+            vec3 nrm[3]       = {0};
+            vec2 texcoords[3] = {0};
 
             for (size_t j = 0; j < 3; ++j)
             {
