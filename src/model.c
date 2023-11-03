@@ -3,30 +3,29 @@
 
 // #include "graphics/raster_mthods/edging.h"
 // #include "graphics/raster_mthods/stepping.h"
-#include "graphics/raster_mthods/matrix.h"
+// #include "graphics/raster_mthods/matrix.h"
 // #include "graphics/raster_mthods/avx.h"
 // #include "graphics/raster_mthods/phong.h"
 // #include "graphics/raster_mthods/normal_map.h"
-// #include "graphics/raster_mthods/parallax.h"
+#include "graphics/raster_mthods/parallax.h"
 
 int main(int argc, char *argv[])
 {
-    (void)argc, (void)argv;
+    UNUSED(argc), UNUSED(argv);
 
     grafika_startup();
     text_startup(GRAFIKA_SCREEN_WIDTH, GRAFIKA_SCREEN_HEIGHT, 12);
 
+    state.obj = obj_load("res/Square/square.obj"); // parallax mapping
     // state.obj = obj_load("res/Cube/cube.obj");
-    // state.obj = obj_load("plane.obj");
     // state.obj = obj_load("bunny.obj");
-    // state.obj = obj_load("res/Square/square.obj"); // parallax mapping
     // state.obj = obj_load("res/Wooden Box/wooden crate.obj"); // normal mapping
     // state.obj = obj_load("res/Dog House/Doghouse.obj");      // normal mapping
     // state.obj = obj_load("res/Lorry/lorry.obj");
     // state.obj = obj_load("res/Camera/Camera.obj");
-    state.obj = obj_load("res/Plane/Plane.obj");
+    // state.obj = obj_load("res/Plane/Plane.obj");
 
-    state.tex = tex_load(state.obj.mats[0].map_Kd, true);
+    state.tex = tex_load(state.obj.mats[0].map_Kd);
 
     mat4 proj; // projection matrix
     m4_proj(DEG2RAD(60.0f), (float)GRAFIKA_SCREEN_WIDTH / (float)GRAFIKA_SCREEN_HEIGHT, 0.1f, 100.0f, proj);
@@ -52,8 +51,8 @@ int main(int argc, char *argv[])
     mat4 scale; // scale matrix
     m4_make_scale(model_scale, model_scale, model_scale, scale);
 
-    printf("bounding boxe : x(%f, %f), y(%f, %f), z(%f, %f)\n", bbox.min[0], bbox.max[0], bbox.min[1], bbox.max[1], bbox.min[2], bbox.max[2]);
-    printf("model - scale : %f, center (%f, %f, %f)\n", model_scale, centerx, centery, centerz);
+    LOG("bounding boxe : x(%f, %f), y(%f, %f), z(%f, %f)\n", bbox.min[0], bbox.max[0], bbox.min[1], bbox.max[1], bbox.min[2], bbox.max[2]);
+    LOG("model - scale : %f, center (%f, %f, %f)\n", model_scale, centerx, centery, centerz);
 
     float rotationAngleX = 0.0f, rotationAngleY = 0.0f;
     float scrollAmount = 4.0f;

@@ -1,9 +1,9 @@
 #ifndef __UTILS_H__
 #define __UTILS_H__
 
-#include "assert.h"
+#include <assert.h>
 
-#define ALIGN_ME(VAL) __attribute__((aligned((VAL))))
+#define UNUSED(VAR) ((void)(VAR))
 
 #define SAFE_FREE(POINTER_TO_DATA)    \
     {                                 \
@@ -13,25 +13,22 @@
             (POINTER_TO_DATA) = NULL; \
         }                             \
     }
+#define ATTRIBATE_FORMAT_PRINTF(VAL1, VAL2) __attribute__((format(gnu_printf, (VAL1), (VAL2))))
 
-#ifdef NDEBUG
-#define ASSERT(EXPR, ...)             \
-    if (!(EXPR))                      \
-    {                                 \
-        fprintf(stderr, __VA_ARGS__); \
-        assert(EXPR);                 \
+#ifndef NDEBUG
+
+#define ASSERT(EXP, MSG, ...)                \
+    if (!(EXP))                              \
+    {                                        \
+        LOG("[ASSERT] " MSG, ##__VA_ARGS__); \
+        assert(EXP);                         \
     }
 
-#define STATIC_ASSERT(CONDITION, MSG)            \
-    {                                            \
-        typedef char test[(CONDITION) ? 1 : -1]; \
-        (void)(test *)#MSG;                      \
-    }                                            \
-    (void)0
-
-#define LOG(MSG, ...) fprintf(stderr, MSG, __VA_ARGS__)
+#define LOG(FORMAT, ...) fprintf(stderr, "[LOG] " FORMAT, ##__VA_ARGS__)
+// #define ASSERT(EXPR, ...)
+//     ((EXPR) ? (void)0 : (void)LOG(#EXPR, ##__VA_ARGS__), assert(EXPR))
 #else
-#define ASSERT(EXPR, ...)
+#define ASSERT(EXP, MSG, ...)
 #define STATIC_ASSERT(CONDITION, MSG)
 #define LOG(MSG, ...)
 #endif

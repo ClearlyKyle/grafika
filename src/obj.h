@@ -95,7 +95,7 @@ static void _material_file(char *line, material_t **mat_data, size_t *num_of_mat
         {
             // Create new material struct
             mat_counter++;
-            printf("Creating new mat\n");
+            LOG("Creating new mat\n");
             *mat_data = realloc(*mat_data, sizeof(material_t) * mat_counter);
 
             curr_mat = mat_data[mat_counter - 1];
@@ -198,7 +198,7 @@ static void parse_f_line(char *fline, const int num_vertex_values, vertindices_t
         }
         current_char++; // Move to the next character after the space
     }
-    // printf("%s", fline);
+    // LOG("%s", fline);
 }
 
 obj_t obj_load(const char *filename)
@@ -359,18 +359,18 @@ obj_t obj_load(const char *filename)
 
     obj.bbox = bbox;
 
-    printf("poss : %zu\n", posCount);
-    printf("norms: %zu\n", normalCount);
-    printf("texs : %zu\n", texCount);
-    printf("faces: %zu\n", frowCount);
-    printf("verts: %zu\n", frowCount * 3);
+    LOG("poss : %zu\n", posCount);
+    LOG("norms: %zu\n", normalCount);
+    LOG("texs : %zu\n", texCount);
+    LOG("faces: %zu\n", frowCount);
+    LOG("verts: %zu\n", frowCount * 3);
 
-    printf("num mats: %zu\n", obj.num_of_mats);
+    LOG("num mats: %zu\n", obj.num_of_mats);
     for (size_t i = 0; i < obj.num_of_mats; i++)
     {
-        printf("%s - diffuse %s\n", obj.mats[i].name, obj.mats[i].map_Kd);
-        printf("%s - normal  %s\n", obj.mats[i].name, obj.mats[i].map_bump);
-        printf("%s - disp    %s\n", obj.mats[i].name, obj.mats[i].disp);
+        LOG("%s - diffuse %s\n", obj.mats[i].name, obj.mats[i].map_Kd);
+        LOG("%s - normal  %s\n", obj.mats[i].name, obj.mats[i].map_bump);
+        LOG("%s - disp    %s\n", obj.mats[i].name, obj.mats[i].disp);
     }
 
     fclose(fp);
@@ -398,7 +398,7 @@ void obj_destroy(obj_t *obj)
 
     *obj = (obj_t){0};
 
-    printf("obj destroyed!\n");
+    LOG("obj destroyed!\n");
 }
 
 #endif // __OBJ_H__
