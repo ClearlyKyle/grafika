@@ -1,6 +1,7 @@
 #ifndef __GRAFIKA_H__
 #define __GRAFIKA_H__
 
+#include <stdlib.h>
 #include <stdbool.h>
 #include <assert.h>
 
@@ -8,6 +9,14 @@
 #include "../utils.h"
 
 #include "SDL2/SDL.h"
+
+#if _WIN32 || _WIN64
+#define aligned_malloc(size, alignemnt) _aligned_malloc(size, alignemnt)
+#define aligned_free(ptr)               _aligned_free(ptr)
+#else
+#define aligned_malloc(size, alignemnt) aligned_alloc(size, alignemnt)
+#define aligned_free(ptr)               free(ptr)
+#endif
 
 #define GRAFIKA_SCREEN_WIDTH  512
 #define GRAFIKA_SCREEN_HEIGHT 512
@@ -31,8 +40,7 @@ static void grafika_present(void)
     int   pitch = 0;
     SDL_LockTexture(rend.texture, NULL, &px, &pitch);
     {
-        memcpy_s(px, (size_t)(GRAFIKA_SCREEN_HEIGHT * pitch),
-                 rend.pixels, GRAFIKA_SCREEN_WIDTH * GRAFIKA_SCREEN_HEIGHT * sizeof(uint32_t));
+        memcpy(px, rend.pixels, GRAFIKA_SCREEN_WIDTH * GRAFIKA_SCREEN_HEIGHT * sizeof(uint32_t));
     }
     SDL_UnlockTexture(rend.texture);
     SDL_RenderClear(rend.renderer);
@@ -108,10 +116,10 @@ static void grafika_startup(void)
             GRAFIKA_SCREEN_HEIGHT);
     ASSERT(rend.texture, "Error - SDL_CreateTexture: %s\n", SDL_GetError());
 
-    rend.pixels = _aligned_malloc(sizeof(uint32_t) * GRAFIKA_SCREEN_WIDTH * GRAFIKA_SCREEN_HEIGHT, 32);
+    rend.pixels = aligned_malloc(sizeof(uint32_t) * GRAFIKA_SCREEN_WIDTH * GRAFIKA_SCREEN_HEIGHT, 32);
     ASSERT(rend.pixels, "Error allocating pixel buffer\n");
 
-    rend.depth_buffer = _aligned_malloc(sizeof(float) * GRAFIKA_SCREEN_WIDTH * GRAFIKA_SCREEN_HEIGHT, 64);
+    rend.depth_buffer = aligned_malloc(sizeof(float) * GRAFIKA_SCREEN_WIDTH * GRAFIKA_SCREEN_HEIGHT, 64);
     ASSERT(rend.depth_buffer, "Error allocating depth buffer\n");
 
     SDL_SetRenderTarget(rend.renderer, NULL);
@@ -130,9 +138,9 @@ static void grafika_shutdown(void)
     SDL_Quit();
 
     if (rend.pixels)
-        _aligned_free(rend.pixels), rend.pixels = NULL;
+        aligned_free(rend.pixels), rend.pixels = NULL;
     if (rend.depth_buffer)
-        _aligned_free(rend.depth_buffer), rend.depth_buffer = NULL;
+        aligned_free(rend.depth_buffer), rend.depth_buffer = NULL;
 }
 
 #endif // __GRAFIKA_H__
