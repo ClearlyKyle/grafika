@@ -53,6 +53,27 @@ typedef struct obj
     vertindices_t *indices; // Index values for 1 vertex
 } obj_t;
 
+/*
+dest    - needs to be big enough to store src + null
+destsz  - strlen(src) + 1;
+src     - source string to copy
+srcsz   - how much of the src string to copy, no including the nul
+*/
+static void _str_copy(char *dest, const size_t destsz, const char *src, const size_t srcsz)
+{
+    if (destsz >= (srcsz + 1))
+    {
+        memmove(dest, src, srcsz);
+        dest[srcsz] = '\0';
+    }
+    else
+    {
+        fprintf(stderr, "destination for string |%s| is too small\n", src);
+        memmove(dest, src, destsz);
+        dest[destsz - 1] = '\0';
+    }
+}
+
 static char *_read_string_until(char *inputString, const char stopChar)
 {
     // TODO : this should take in some kind of length
@@ -64,7 +85,7 @@ static char *_read_string_until(char *inputString, const char stopChar)
     return inputString;
 }
 
-static void removeNewline(char *str)
+static void _remove_new_line(char *str)
 {
     ASSERT(str, "string should not be NULL");
 
@@ -78,11 +99,11 @@ static void _material_file(char *line, material_t **mat_data, size_t *num_of_mat
 {
     char *material_file_path = _read_string_until(line, ' ');
 
-    removeNewline(++material_file_path); // NOTE : this might be unsafe
+    _remove_new_line(++material_file_path); // NOTE : this might be unsafe
 
     FILE *material_fp = NULL;
-    fopen_s(&material_fp, material_file_path, "r");
-    ASSERT(material_fp, "Error  opening matrial file: %s\n", material_file_path);
+    material_fp       = fopen(material_file_path, "r");
+    ASSERT(material_fp, "Error opening matrial file: %s\n", material_file_path);
 
     material_t *curr_mat    = NULL;
     size_t      mat_counter = 0;
@@ -103,42 +124,56 @@ static void _material_file(char *line, material_t **mat_data, size_t *num_of_mat
 
             // Get material name
             char *material_name = _read_string_until(linebuffer, ' ');
-            removeNewline(++material_name); // NOTE : this might be unsafe
+            _remove_new_line(++material_name); // NOTE : this might be unsafe
 
-            const size_t str_len = strlen(material_name);
-            curr_mat->name       = malloc(sizeof(char) * str_len);
+            const size_t str_len  = strlen(material_name); // not including the null terminating character
+            const size_t dst_size = str_len + 1;
+            curr_mat->name        = malloc(sizeof(char) * dst_size);
 
-            strncpy_s(curr_mat->name, str_len, material_name, str_len);
+            _str_copy(curr_mat->name, dst_size, material_name, str_len);
+            // curr_mat->name[str_len - 1] = '\0';
         }
         if (strncmp(linebuffer, "map_Kd", 6) == 0) // Diffuse Map
         {
             char *diffuse_path = _read_string_until(linebuffer, ' ');
-            removeNewline(++diffuse_path); // NOTE : this might be unsafe
+            _remove_new_line(++diffuse_path); // NOTE : this might be unsafe
 
-            const size_t str_len = strlen(diffuse_path) + 1;
-            curr_mat->map_Kd     = calloc(str_len, sizeof(char));
+            const size_t str_len  = strlen(diffuse_path);
+            const size_t dst_size = str_len + 1;
+            curr_mat->map_Kd      = calloc(dst_size, sizeof(char));
 
-            strncpy_s(curr_mat->map_Kd, str_len, diffuse_path, str_len);
+            _str_copy(curr_mat->map_Kd, dst_size, diffuse_path, str_len);
+            // curr_mat->map_Kd[str_len - 1] = '\0';
+
+            LOG("curr_mat->map_Kd = |%s|\n", curr_mat->map_Kd);
         }
         if (strncmp(linebuffer, "map_bump", 8) == 0 || strncmp(linebuffer, "map_Bump", 8) == 0) // Bump Map
         {
             char *bump_path = _read_string_until(linebuffer, ' ');
-            removeNewline(++bump_path); // NOTE : this might be unsafe
+            _remove_new_line(++bump_path); // NOTE : this might be unsafe
 
-            const size_t str_len = strlen(bump_path) + 1;
-            curr_mat->map_bump   = calloc(str_len, sizeof(char));
+            const size_t str_len  = strlen(bump_path);
+            const size_t dst_size = str_len + 1;
+            curr_mat->map_bump    = calloc(dst_size, sizeof(char));
 
-            strncpy_s(curr_mat->map_bump, str_len, bump_path, str_len);
+            _str_copy(curr_mat->map_bump, dst_size, bump_path, str_len);
+            // curr_mat->map_bump[str_len - 1] = '\0';
+
+            LOG("curr_mat->map_bump = |%s|\n", curr_mat->map_bump);
         }
         if (strncmp(linebuffer, "disp", 4) == 0) // Displacement Map
         {
             char *disp_path = _read_string_until(linebuffer, ' ');
-            removeNewline(++disp_path); // NOTE : this might be unsafe
+            _remove_new_line(++disp_path); // NOTE : this might be unsafe
 
-            const size_t str_len = strlen(disp_path) + 1;
-            curr_mat->disp       = calloc(str_len, sizeof(char));
+            const size_t str_len  = strlen(disp_path);
+            const size_t dst_size = str_len + 1;
+            curr_mat->disp        = calloc(dst_size, sizeof(char));
 
-            strncpy_s(curr_mat->disp, str_len, disp_path, str_len);
+            _str_copy(curr_mat->disp, dst_size, disp_path, str_len);
+            // curr_mat->disp[str_len - 1] = '\0';
+
+            LOG("curr_mat->disp = |%s|\n", curr_mat->disp);
         }
     }
 
@@ -204,7 +239,7 @@ static void parse_f_line(char *fline, const int num_vertex_values, vertindices_t
 obj_t obj_load(const char *filename)
 {
     FILE *fp = NULL;
-    fopen_s(&fp, filename, "r");
+    fp       = fopen(filename, "r");
     ASSERT(fp, "Error with opening object file : '%s'\n", filename);
 
     char linebuffer[MAX_CHAR_LINE_BUFFER]; // Adjust the size
@@ -272,17 +307,17 @@ obj_t obj_load(const char *filename)
 
         if (linebuffer[0] == 'v' && linebuffer[1] == 'n')
         {
-            sscanf_s(linebuffer, "vn %f %f %f",
-                     &obj.norms[nrm_idx + 0],
-                     &obj.norms[nrm_idx + 1],
-                     &obj.norms[nrm_idx + 2]);
+            sscanf(linebuffer, "vn %f %f %f",
+                   &obj.norms[nrm_idx + 0],
+                   &obj.norms[nrm_idx + 1],
+                   &obj.norms[nrm_idx + 2]);
             nrm_idx += 3;
         }
         else if (linebuffer[0] == 'v' && linebuffer[1] == 't')
         {
-            sscanf_s(linebuffer, "vt %f %f",
-                     &obj.texs[tex_idx + 0],
-                     &obj.texs[tex_idx + 1]);
+            sscanf(linebuffer, "vt %f %f",
+                   &obj.texs[tex_idx + 0],
+                   &obj.texs[tex_idx + 1]);
             tex_idx += 2;
         }
         else if (linebuffer[0] == 'v')
