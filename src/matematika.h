@@ -4,16 +4,16 @@
 #include <math.h>
 
 #if 0
-    #define LH_COORDINATE_SYSTEM
+#define LH_COORDINATE_SYSTEM
 #else
-    #define RH_COORDINATE_SYSTEM /* Blender uses RH */
+#define RH_COORDINATE_SYSTEM /* Blender uses RH */
 #endif
 
 // GCC have funny inline rules, this will help
 #if defined(_MSC_VER)
-    #define _INLINE __forceinline
+#define _INLINE __forceinline
 #else
-    #define _INLINE static inline
+#define _INLINE static inline
 #endif
 
 #define max(a, b) (((a) > (b)) ? (a) : (b))
@@ -486,10 +486,10 @@ void AABB_make(vec3 pos[3], int AABB[4])
             fmaxY = y;
     }
     /* Clamp values to valid range */
-    AABB[0] = max(0, min((int)fminX, GRAFIKA_SCREEN_WIDTH));  // minX
-    AABB[1] = max(0, min((int)fminY, GRAFIKA_SCREEN_HEIGHT)); // minY
-    AABB[2] = max(0, min((int)fmaxX, GRAFIKA_SCREEN_WIDTH));  // maxX
-    AABB[3] = max(0, min((int)fmaxY, GRAFIKA_SCREEN_HEIGHT)); // maxY
+    AABB[0] = max(0, min((int)fminX, GRAFIKA_SCREEN_WIDTH - 1));  // minX
+    AABB[1] = max(0, min((int)fminY, GRAFIKA_SCREEN_HEIGHT - 1)); // minY
+    AABB[2] = max(0, min((int)fmaxX, GRAFIKA_SCREEN_WIDTH - 1));  // maxX
+    AABB[3] = max(0, min((int)fmaxY, GRAFIKA_SCREEN_HEIGHT - 1)); // maxY
 }
 
 #endif // __MATEMATIKA_H__
