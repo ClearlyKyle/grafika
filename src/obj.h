@@ -91,8 +91,12 @@ static void _remove_new_line(char *str)
 
     const size_t length = strcspn(str, "\n"); // TODO : remove this function call
 
-    if (str[length] == '\n')
+    // TODO : refactor this
+    if (str[length] == '\n' || str[length] == '\r')
         str[length] = '\0'; // Replace newline with null-termination
+
+    if (str[length - 1] == '\n' || str[length - 1] == '\r')
+        str[length - 1] = '\0'; // Replace newline with null-termination
 }
 
 static void _material_file(char *line, material_t **mat_data, size_t *num_of_mats)
@@ -154,7 +158,8 @@ static void _material_file(char *line, material_t **mat_data, size_t *num_of_mat
 
             const size_t str_len  = strlen(bump_path);
             const size_t dst_size = str_len + 1;
-            curr_mat->map_bump    = calloc(dst_size, sizeof(char));
+
+            curr_mat->map_bump = calloc(dst_size, sizeof(char));
 
             _str_copy(curr_mat->map_bump, dst_size, bump_path, str_len);
             // curr_mat->map_bump[str_len - 1] = '\0';
