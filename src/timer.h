@@ -3,10 +3,10 @@
 
 #include "SDL2/SDL.h"
 
-typedef struct timer
+typedef struct tymer_t
 {
     Uint64 start, elapsed, perf_frequency;
-} timer_t;
+} tymer_t;
 
 #define TIMER_START(TIMER)                                      \
     {                                                           \
@@ -15,11 +15,11 @@ typedef struct timer
         (TIMER).elapsed        = 0;                             \
     }
 
-#define TIMER_UPDATE(TIMER)                                  \
-    {                                                        \
-        const Uint64 new_time = SDL_GetPerformanceCounter(); \
-        (TIMER).elapsed       = new_time - (TIMER).start;    \
-        (TIMER).start         = new_time;                    \
+#define TIMER_UPDATE(TIMER)                                                 \
+    {                                                                       \
+        const Uint64 _new_time_##TIMER = SDL_GetPerformanceCounter();       \
+        (TIMER).elapsed                = _new_time_##TIMER - (TIMER).start; \
+        (TIMER).start                  = _new_time_##TIMER;                 \
     }
 
 #define TIMER_ELAPSED_S(TIMER) ((double)(TIMER).elapsed / (double)(TIMER).perf_frequency)
