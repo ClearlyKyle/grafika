@@ -9,12 +9,13 @@
 #include "../utils.h"
 
 #include "SDL2/SDL.h"
+#include "SDL2/SDL_image.h"
 
 #if _WIN32 || _WIN64
 #define aligned_malloc(size, alignemnt) _aligned_malloc(size, alignemnt)
 #define aligned_free(ptr)               _aligned_free(ptr)
 #else
-#define aligned_malloc(size, alignemnt) aligned_alloc(size, alignemnt)
+#define aligned_malloc(size, alignemnt) aligned_alloc(alignemnt, size)
 #define aligned_free(ptr)               free(ptr)
 #endif
 
@@ -90,6 +91,8 @@ static void grafika_startup(void)
     if (0 != SDL_Init(SDL_INIT_VIDEO))
         fprintf(stderr, "SDL failed to initialize: %s\n", SDL_GetError()), abort();
 
+    IMG_Init(IMG_INIT_JPG | IMG_INIT_PNG);
+
     rend.window =
         SDL_CreateWindow(
             "Title",
@@ -129,6 +132,8 @@ static void grafika_startup(void)
 
 static void grafika_shutdown(void)
 {
+    IMG_Quit();
+
     if (rend.texture)
         SDL_DestroyTexture(rend.texture), rend.texture = NULL;
     if (rend.renderer)
@@ -141,6 +146,8 @@ static void grafika_shutdown(void)
         aligned_free(rend.pixels), rend.pixels = NULL;
     if (rend.depth_buffer)
         aligned_free(rend.depth_buffer), rend.depth_buffer = NULL;
+
+    LOG("grafika_shutdown\n");
 }
 
 #endif // __GRAFIKA_H__
