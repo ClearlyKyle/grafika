@@ -530,6 +530,10 @@ static void draw_object(void)
     if (!transformed_vertices)
     {
         transformed_vertices           = malloc(sizeof(vec4) * object.num_pos);
+
+        ASSERT(object.mats[0].map_bump, "No bump map was loaded, check object has such map\n");
+        ASSERT(object.mats[0].disp, "No displacement map was loaded, check object has such map\n");
+
         parallax_mapping_data.nrm_tex  = tex_load(object.mats[0].map_bump);
         parallax_mapping_data.disp_tex = tex_load(object.mats[0].disp);
     }

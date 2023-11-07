@@ -405,6 +405,8 @@ static void draw_object(void)
     if (!transformed_vertices)
     {
         transformed_vertices        = malloc(sizeof(vec4) * object.num_pos);
+        
+        ASSERT(object.mats[0].map_bump, "Object must have a normal map!\n");
         normal_mapping_data.nrm_tex = tex_load(object.mats[0].map_bump);
     }
 
