@@ -61,29 +61,20 @@ static inline __m128 Interpolate_Vertex_Value(const __m128 F[3], const __m128 V[
 
 static void draw_triangle(vec4 verts[3], vec2 texcoords[3])
 {
-    vec4 ss_v[3] = {0}; // screen space vertices
-    for (int i = 0; i < 3; ++i)
-    {
-        ss_v[i][0] = verts[i][0];
-        ss_v[i][1] = verts[i][1];
-        ss_v[i][2] = verts[i][2];
-        ss_v[i][3] = verts[i][3];
-    }
-
     /* From the paper, calculate out "A" matrix */
-    const float a0 = (ss_v[1][1] * ss_v[2][3]) - (ss_v[2][1] * ss_v[1][3]);
-    const float a1 = (ss_v[2][1] * ss_v[0][3]) - (ss_v[0][1] * ss_v[2][3]);
-    const float a2 = (ss_v[0][1] * ss_v[1][3]) - (ss_v[1][1] * ss_v[0][3]);
+    const float a0 = (verts[1][1] * verts[2][3]) - (verts[2][1] * verts[1][3]);
+    const float a1 = (verts[2][1] * verts[0][3]) - (verts[0][1] * verts[2][3]);
+    const float a2 = (verts[0][1] * verts[1][3]) - (verts[1][1] * verts[0][3]);
 
-    const float b0 = (ss_v[2][0] * ss_v[1][3]) - (ss_v[1][0] * ss_v[2][3]);
-    const float b1 = (ss_v[0][0] * ss_v[2][3]) - (ss_v[2][0] * ss_v[0][3]);
-    const float b2 = (ss_v[1][0] * ss_v[0][3]) - (ss_v[0][0] * ss_v[1][3]);
+    const float b0 = (verts[2][0] * verts[1][3]) - (verts[1][0] * verts[2][3]);
+    const float b1 = (verts[0][0] * verts[2][3]) - (verts[2][0] * verts[0][3]);
+    const float b2 = (verts[1][0] * verts[0][3]) - (verts[0][0] * verts[1][3]);
 
-    const float c0 = (ss_v[1][0] * ss_v[2][1]) - (ss_v[2][0] * ss_v[1][1]);
-    const float c1 = (ss_v[2][0] * ss_v[0][1]) - (ss_v[0][0] * ss_v[2][1]);
-    const float c2 = (ss_v[0][0] * ss_v[1][1]) - (ss_v[1][0] * ss_v[0][1]);
+    const float c0 = (verts[1][0] * verts[2][1]) - (verts[2][0] * verts[1][1]);
+    const float c1 = (verts[2][0] * verts[0][1]) - (verts[0][0] * verts[2][1]);
+    const float c2 = (verts[0][0] * verts[1][1]) - (verts[1][0] * verts[0][1]);
 
-    const float detM = (c0 * ss_v[0][3]) + (c1 * ss_v[1][3]) + (c2 * ss_v[2][3]);
+    const float detM = (c0 * verts[0][3]) + (c1 * verts[1][3]) + (c2 * verts[2][3]);
     /*
     The sign of the determinant gives the orientation of the triangle: a counterclockwise order gives a positive determinant
     */
@@ -100,9 +91,9 @@ static void draw_triangle(vec4 verts[3], vec2 texcoords[3])
     vec3 proj[3] = {0};
     for (int i = 0; i < 3; i++)
     {
-        proj[i][0] = ss_v[i][0] / ss_v[i][3];
-        proj[i][1] = ss_v[i][1] / ss_v[i][3];
-        proj[i][2] = ss_v[i][2] / ss_v[i][3];
+        proj[i][0] = verts[i][0] / verts[i][3];
+        proj[i][1] = verts[i][1] / verts[i][3];
+        proj[i][2] = verts[i][2] / verts[i][3];
     }
 
     /* Get the bounding box of the triangle */
@@ -148,9 +139,9 @@ static void draw_triangle(vec4 verts[3], vec2 texcoords[3])
     V[1] = _mm_set1_ps(texcoords[1][1]);
     V[2] = _mm_set1_ps(texcoords[2][1]);
 
-    Z[0] = _mm_set1_ps(ss_v[0][2]);
-    Z[1] = _mm_set1_ps(ss_v[1][2]);
-    Z[2] = _mm_set1_ps(ss_v[2][2]);
+    Z[0] = _mm_set1_ps(verts[0][2]);
+    Z[1] = _mm_set1_ps(verts[1][2]);
+    Z[2] = _mm_set1_ps(verts[2][2]);
 
     __m128 Edge0_A = _mm_set_ps1(E0[0]);
     __m128 Edge1_A = _mm_set_ps1(E1[0]);
