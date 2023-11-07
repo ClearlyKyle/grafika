@@ -36,6 +36,8 @@ static inline void text_shutdown(void)
         TTF_CloseFont(text_state.font);
     if (TTF_WasInit())
         TTF_Quit();
+
+    LOG("text_shutdown\n");
 }
 
 static void text_write(int x, int y, const char *formatted_text, ...) ATTRIBATE_FORMAT_PRINTF(3, 4);

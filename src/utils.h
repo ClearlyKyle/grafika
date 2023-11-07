@@ -22,6 +22,7 @@ static inline void _log_printf(const char *fmt, ...)
     va_list va_args;
     va_start(va_args, fmt);
     {
+        fprintf(stdout, "[LOG] ");
         vfprintf(stdout, fmt, va_args);
     }
     fflush(stdout);
@@ -34,7 +35,7 @@ static inline void _log_printf(const char *fmt, ...)
 #define ASSERT(EXP, ...)                \
     if (!(EXP))                         \
     {                                   \
-        fprintf(stderr, ##__VA_ARGS__); \
+        LOG(__VA_ARGS__); \
         assert(EXP);                    \
     }
 #else
