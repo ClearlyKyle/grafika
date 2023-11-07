@@ -160,6 +160,57 @@ void m3_mul_v3(mat3 m, vec3 v, vec3 dest)
     dest[2] = tmp[2];
 }
 
+static inline void
+m3_scale(mat3 m, float s)
+{
+    m[0][0] *= s;
+    m[0][1] *= s;
+    m[0][2] *= s;
+    m[1][0] *= s;
+    m[1][1] *= s;
+    m[1][2] *= s;
+    m[2][0] *= s;
+    m[2][1] *= s;
+    m[2][2] *= s;
+}
+
+_INLINE
+void m3_inv(mat3 mat, mat3 dest)
+{
+    float det;
+    float a = mat[0][0], b = mat[0][1], c = mat[0][2],
+          d = mat[1][0], e = mat[1][1], f = mat[1][2],
+          g = mat[2][0], h = mat[2][1], i = mat[2][2];
+
+    dest[0][0] = e * i - f * h;
+    dest[0][1] = -(b * i - h * c);
+    dest[0][2] = b * f - e * c;
+    dest[1][0] = -(d * i - g * f);
+    dest[1][1] = a * i - c * g;
+    dest[1][2] = -(a * f - d * c);
+    dest[2][0] = d * h - g * e;
+    dest[2][1] = -(a * h - g * b);
+    dest[2][2] = a * e - b * d;
+
+    det = 1.0f / (a * dest[0][0] + b * dest[1][0] + c * dest[2][0]);
+
+    m3_scale(dest, det);
+}
+
+_INLINE
+void m3_transpose(mat3 m, mat3 dest)
+{
+    dest[0][0] = m[0][0];
+    dest[0][1] = m[1][0];
+    dest[0][2] = m[2][0];
+    dest[1][0] = m[0][1];
+    dest[1][1] = m[1][1];
+    dest[1][2] = m[2][1];
+    dest[2][0] = m[0][2];
+    dest[2][1] = m[1][2];
+    dest[2][2] = m[2][2];
+}
+
 // mat4 functions ---------------------------------------------------------------------------------
 
 _INLINE

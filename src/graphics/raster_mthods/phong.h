@@ -68,7 +68,7 @@ static inline float Interpolate_Values(vec3 littlef_values, vec3 attribute)
 
 static inline float calculate_specular_amount(vec3 L, vec3 E, vec3 N, const float shininess)
 {
-#if 0
+#if 1
     {
         // BLINN PHONG
         vec3 halfway_direction = {0};
@@ -305,10 +305,10 @@ static void draw_object(void)
     mat4 cum_matrix = {0};
     m4_mul_m4(VP_MATRIX, state.MVP, cum_matrix);
 
-    mat4 tmp = {0}, nrm_mat = {0};
-    m4_inv(state.model, tmp);
-    m4_transpose(tmp, nrm_mat);
-    m3_from_m4(nrm_mat, phong_data.nrm_matrix);
+    mat3 tmp = {0};
+    m3_from_m4(state.model, tmp);
+    m3_inv(tmp, tmp);
+    m3_transpose(tmp, phong_data.nrm_matrix);
 
     const obj_t object = state.obj;
 
