@@ -123,6 +123,9 @@ static void draw_triangle(const triangle_t t)
             float u = (t.tex[0][0] * wait0 + t.tex[1][0] * wait1 + t.tex[2][0] * wait2) * cf;
             float v = (t.tex[0][1] * wait0 + t.tex[1][1] * wait1 + t.tex[2][1] * wait2) * cf;
 
+            if(u < 0.0f || u > 1.0f || v < 0.0f || v > 1.0f)
+                continue;
+
             // u = fabsf(u);
             // v = fabsf(v);
 
