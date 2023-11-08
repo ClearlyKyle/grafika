@@ -1,12 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-// #include "graphics/raster_mthods/edging.h"
-// #include "graphics/raster_mthods/stepping.h"
-// #include "graphics/raster_mthods/matrix.h"
-// #include "graphics/raster_mthods/avx.h"
-// #include "graphics/raster_mthods/phong.h"
-// #include "graphics/raster_mthods/normal_map.h"
+//#include "graphics/raster_mthods/edging.h"
+//#include "graphics/raster_mthods/stepping.h"
+//#include "graphics/raster_mthods/matrix.h"
+//#include "graphics/raster_mthods/avx.h"
+//#include "graphics/raster_mthods/phong.h"
+//#include "graphics/raster_mthods/normal_map.h"
 #include "graphics/raster_mthods/parallax.h"
 
 int main(int argc, char *argv[])
@@ -16,15 +16,20 @@ int main(int argc, char *argv[])
     grafika_startup();
     text_startup(GRAFIKA_SCREEN_WIDTH, GRAFIKA_SCREEN_HEIGHT, 12);
 
-    state.obj = obj_load("res/Square/square.obj"); // parallax mapping
+    // edging, stepping, matrix, avx, phong
     // state.obj = obj_load("res/Cube/cube.obj");
-    // state.obj = obj_load("bunny.obj");
-    // state.obj = obj_load("res/Wooden Box/wooden crate.obj"); // normal mapping
-    // state.obj = obj_load("res/Dog House/Doghouse.obj");      // normal mapping
     // state.obj = obj_load("res/Lorry/lorry.obj");
     // state.obj = obj_load("res/Camera/Camera.obj");
     // state.obj = obj_load("res/Plane/Plane.obj");
 
+    // edging, stepping, matrix, avx, phong, normal mapping
+    // state.obj = obj_load("res/Wooden Box/wooden crate.obj");
+    // state.obj = obj_load("res/Dog House/Doghouse.obj");
+
+    // edging, stepping, matrix, avx, phong, normal, parallax
+    state.obj = obj_load("res/Square/square.obj");
+
+    ASSERT(state.obj.mats, "Object must have atleast a diffuse texture\n");
     state.tex = tex_load(state.obj.mats[0].map_Kd);
 
     mat4 proj; // projection matrix
@@ -48,7 +53,7 @@ int main(int argc, char *argv[])
         model_scale = 1.0f / (bbox.max[1] - bbox.min[1]);
 #endif
 
-    mat4 scale; // scale matrix
+    mat4 scale = {0}; // scale matrix
     m4_make_scale(model_scale, model_scale, model_scale, scale);
 
     LOG("bounding boxe : x(%f, %f), y(%f, %f), z(%f, %f)\n", bbox.min[0], bbox.max[0], bbox.min[1], bbox.max[1], bbox.min[2], bbox.max[2]);
@@ -61,7 +66,7 @@ int main(int argc, char *argv[])
     state.cam_pos[1] = 0.0f;
     state.cam_pos[2] = scrollAmount;
 
-    timer_t frame_timer = {0};
+    tymer_t frame_timer = {0};
     TIMER_START(frame_timer);
 
     int    frame_counter          = 0;

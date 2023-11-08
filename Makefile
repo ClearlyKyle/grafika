@@ -2,14 +2,15 @@
 # Check for correct indentation!
 
 # Build settings
-CC = C:\msys64\mingw64\bin\gcc.exe
-PKG_CONFIG = C:\msys64\mingw64\bin\pkg-config.exe
+CC = gcc-12
+PKG_CONFIG = pkg-config
 
 CFLAGS := -g -std=gnu11 -m64
 
 # CFLAGS += -gdwarf-2 # DrMemory things
 
-CFLAGS += -mconsole -fopenmp -msse4.1
+CFLAGS += -fopenmp -msse4.1
+#CFLAGS += -mconsole
 
 CFLAGS += -Wall -Wextra -Wpedantic
 #CFLAGS += -Werror # treat warnings as errors
@@ -65,13 +66,13 @@ CFLAGS += -fcf-protection=full # <full|return|branch>
 CFLAGS += -D_FORTIFY_SOURCE=3 # GCC 12,  will try to detect overflows in variable length variables
 
 #CFLAGS += -fsanitize=address \
-#-fsanitize=pointer-compare \pkg
-#-fsanitize=pointer-subtract\
+#-fsanitize=pointer-compare \
+#-fsanitize=pointer-subtract \
 #-fno-omit-frame-pointer \
 #-fsanitize=undefined \
 #-fsanitize=bounds-strict \
 #-fsanitize=float-divide-by-zero \
-#-fsanitize=leak\
+#-fsanitize=leak \
 #-fsanitize=float-cast-overflow
 #export ASAN_OPTIONS=strict_string_checks=1:detect_stack_use_after_return=1:check_initialization_order=1:strict_init_order=1:detect_invalid_pointer_pairs=2
 
@@ -85,11 +86,11 @@ SRC_DIR 	:= src#
 INC_DIRS 	:= ./src ./src/graphics/#
 
 # pkg-config Library names
-LIB_NAMES := sdl2 sdl2_ttf sdl2_image
+LIB_NAMES := sdl2 SDL2_ttf SDL2_image
 
 # Library flags and linking
-LIB_CFLAGS  := $(shell $(PKG_CONFIG) --cflags $(LIB_NAMES)) -mconsole
-LIB_LDFLAGS := $(shell $(PKG_CONFIG) --libs-only-L --libs-only-l $(LIB_NAMES))
+LIB_CFLAGS  := $(shell $(PKG_CONFIG) --cflags $(LIB_NAMES))
+LIB_LDFLAGS := $(shell $(PKG_CONFIG) --libs-only-L --libs-only-l $(LIB_NAMES)) -lm
 
 # Add the include directories
 CFLAGS         += $(addprefix -I, $(INC_DIRS))
