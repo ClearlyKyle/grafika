@@ -70,7 +70,7 @@ tex_t tex_load(const char *file_path)
     SDL_Surface *surface = IMG_Load(file_path);
     ASSERT(surface, "Failed to load image\n\t|%s|\n", file_path);
 
-    _flip_surface(surface);
+    //_flip_surface(surface);
 
     t.surface = surface;
     t.h       = surface->h;

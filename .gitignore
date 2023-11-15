@@ -1,4 +1,7 @@
 .vscode
 bin/*
-res/*
+res/Camera
+res/Cube
+res/Lorry
+res/Plane
 testing

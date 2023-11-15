@@ -183,7 +183,7 @@ static inline float mix(float x, float y, float a)
     return x * (1.0f - a) + y * a;
 }
 
-static inline unsigned char *tex_get_pos(tex_t *t, float x, float y)
+static inline unsigned char *tex_get_pos(tex_t *t, const float x, const float y)
 {
 #if 1 /* GL_REPEAT */
     float new_x = x - floorf(x);
@@ -191,8 +191,8 @@ static inline unsigned char *tex_get_pos(tex_t *t, float x, float y)
     int   pix_x = (int)((float)(t->w - 1) * new_x);
     int   pix_y = (int)((float)(t->h - 1) * new_y);
 #else
-    int  pix_x = (int)((float)(t->w - 1) * x);
-    int  pix_y = (int)((float)(t->h - 1) * y);
+    int  pix_x       = (int)((float)(t->w - 1) * x);
+    int  pix_y       = (int)((float)(t->h - 1) * y);
 #endif
     // TODO: Bounds checking?
     unsigned char *colour = t->data + ((pix_x + pix_y * t->w) * t->bpp);
@@ -223,7 +223,7 @@ static inline void Steep_Parallax_Mapping(const vec2 tex_coords, const vec3 view
 {
     // determine number of layers from angle between V and N
     const float minLayers = 8.0f;
-    const float maxLayers = 32.0f;
+    const float maxLayers = 64.0f;
     float       numLayers = mix(maxLayers,
                                 minLayers,
                                 fabsf(v3_dot((vec3){0.0f, 0.0f, 1.0f}, view_direction)));
@@ -240,7 +240,7 @@ static inline void Steep_Parallax_Mapping(const vec2 tex_coords, const vec3 view
 
     // get first depth from heightmap
     unsigned char *disp_colour       = tex_get_pos(&parallax_mapping_data.disp_tex, tex_coords[0], tex_coords[1]);
-    float          heightFromTexture = (float)disp_colour[0] / 255.0f;
+    float          heightFromTexture = 1.0f - (float)disp_colour[0] / 255.0f;
 
     // while point is above surface
     while (currentLayerHeight < heightFromTexture)
@@ -254,10 +254,10 @@ static inline void Steep_Parallax_Mapping(const vec2 tex_coords, const vec3 view
 
         // get new depth from heightmap
         unsigned char *new_colour = tex_get_pos(&parallax_mapping_data.disp_tex, currentTextureCoords[0], currentTextureCoords[1]);
-        heightFromTexture         = (float)new_colour[0] / 255.0f;
+        heightFromTexture         = 1.0f - (float)new_colour[0] / 255.0f;
     }
 
-#if 1 /* Relief Parallax Mapping */
+#if 0   /* Relief Parallax Mapping */
     // decrease shift and height of layer by half
     vec2  deltaTexCoord = {dtex[0] * 0.5f, dtex[1] * 0.5f};
     float deltaHeight   = layerHeight * 0.5f;
@@ -279,7 +279,7 @@ static inline void Steep_Parallax_Mapping(const vec2 tex_coords, const vec3 view
         // new depth from heightmap
         // get new depth from heightmap
         unsigned char *new_colour = tex_get_pos(&parallax_mapping_data.disp_tex, currentTextureCoords[0], currentTextureCoords[1]);
-        heightFromTexture         = (float)new_colour[0] / 255.0f;
+        heightFromTexture         = 1.0f - (float)new_colour[0] / 255.0f;
 
         // shift along or agains vector V
         if (heightFromTexture > currentLayerHeight) // below the surface
@@ -296,21 +296,21 @@ static inline void Steep_Parallax_Mapping(const vec2 tex_coords, const vec3 view
         }
     }
 #elif 1 /* Parallax Occlusion Mapping (POM) */
-    vec2 prevTCoords; // get texture coordinates before collision (reverse operations)
-    prevTCoords[0] = currentTextureCoords[0] + dtex[0];
-    prevTCoords[1] = currentTextureCoords[1] + dtex[1];
-    Offse
-        // get height after and before collision for linear interpolation
-        float nextH = heightFromTexture - currentLayerHeight;
+    vec2 prevTCoords = {0}; // get texture coordinates before collision (reverse operations)
+    prevTCoords[0]   = currentTextureCoords[0] + dtex[0];
+    prevTCoords[1]   = currentTextureCoords[1] + dtex[1];
+
+    // get height after and before collision for linear interpolation
+    float nextH = heightFromTexture - currentLayerHeight;
 
     disp_colour = tex_get_pos(&parallax_mapping_data.disp_tex, prevTCoords[0], prevTCoords[1]);
-    float prevH = (float)disp_colour[0] / 255.0f - currentLayerHeight + layerHeight;
+    float prevH = (1.0f - (float)disp_colour[0] / 255.0f) - currentLayerHeight + layerHeight;
 
     // proportions for linear interpolation
     float weight = nextH / (nextH - prevH);
 
     // interpolation of texture coordinates
-    vec2 finalTexCoords;
+    vec2 finalTexCoords     = {0};
     currentTextureCoords[0] = prevTCoords[0] * weight + currentTextureCoords[0] * (1.0f - weight);
     currentTextureCoords[1] = prevTCoords[1] * weight + currentTextureCoords[1] * (1.0f - weight);
 
@@ -529,7 +529,7 @@ static void draw_object(void)
 
     if (!transformed_vertices)
     {
-        transformed_vertices           = malloc(sizeof(vec4) * object.num_pos);
+        transformed_vertices = malloc(sizeof(vec4) * object.num_pos);
 
         ASSERT(object.mats[0].map_bump, "No bump map was loaded, check object has such map\n");
         ASSERT(object.mats[0].disp, "No displacement map was loaded, check object has such map\n");
