@@ -10,12 +10,11 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.330000
 d 1.000000
 illum 2
-# map_bump res/Square/normal_map.png
-# map_Kd res/Square/diffuse.png
-# disp res/Square/displacement_map.png
-map_Bump res/Square/bricks_normal.jpg
-map_Kd res/Square/bricks.jpg
-disp res/Square/bricks_disp.jpg
-# map_Bump res/Square/Tileable_Red_brick_texture_NORMAL.png
-# map_Kd res/Square/Tileable_Red_brick_texture_DIFFUSE.png
-# disp res/Square/Tileable_Red_brick_texture_DISP.png
+
+# map_Bump res/Square/simple_bricks_normal.jpg
+# map_Kd res/Square/simple_bricks_diffuse.jpg
+# disp res/Square/simple_bricks_displacement.jpg
+
+map_Bump res/Square/Bricks_Normal.jpg
+map_Kd res/Square/Bricks_Diffuse.jpg
+disp res/Square/Bricks_Displacement.jpg
