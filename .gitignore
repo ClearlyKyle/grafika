@@ -1,7 +1,6 @@
 .vscode
 bin/*
 res/Camera
-res/Cube
 res/Lorry
 res/Plane
 testing

@@ -14,3 +14,10 @@ Using SDL2, MSVC, OpenMP, and SIMD, for rasterization of an .OBJ model. The list
 - [phong.h](src/graphics/raster_mthods/phong.h) - Phong lighting implemented using the avx method for rasterising
 - [normal_map.h](src/graphics/raster_mthods/normal_map.h) - Normal Mapping implemented using the avx method for rasterising
 - [parallax.h](src/graphics/raster_mthods/edging.h)- Different Parallax mapping techniques implemented using the avx method; Offset, Steep, Relief and Parallax Occlusion Mapping (POM)  
+
+### Models
+
+- [Wooden Box](https://www.turbosquid.com/3d-models/wooden-box-3d-model-1617331)
+- [Camera](https://www.cgtrader.com/products/nikon-camera-low-poly-free)
+- [Plane](https://www.cgtrader.com/products/piper-pa-18-supercub)
+- [Toy Truck](https://free3d.com/3d-model/toy-truck-481161.html)
