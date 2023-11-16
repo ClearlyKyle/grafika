@@ -203,12 +203,12 @@ static inline unsigned char *tex_get_pos(tex_t *t, const float x, const float y)
 static inline void Parallax_Mapping(const vec2 tex_coords, const vec3 view_direction, vec2 res)
 {
     unsigned char *disp_colour    = tex_get_pos(&parallax_mapping_data.disp_tex, tex_coords[0], tex_coords[1]);
-    const float    initial_height = (float)disp_colour[0] / 255.0f;
+    const float    initial_height = 1.0f - (float)disp_colour[0] / 255.0f;
 
     // calculate amount of offset for Parallax Mapping
-    vec2 texCoordOffset;
-    texCoordOffset[0] = PARALLAX_HEIGHT_MAP_SCALE * ((view_direction[0] / view_direction[2]) * initial_height);
-    texCoordOffset[1] = PARALLAX_HEIGHT_MAP_SCALE * ((view_direction[1] / view_direction[2]) * initial_height);
+    vec2 texCoordOffset = {0};
+    texCoordOffset[0]   = PARALLAX_HEIGHT_MAP_SCALE * ((view_direction[0] / view_direction[2]) * initial_height);
+    texCoordOffset[1]   = PARALLAX_HEIGHT_MAP_SCALE * ((view_direction[1] / view_direction[2]) * initial_height);
 
     // calculate amount of offset for Parallax Mapping With Offset Limiting
     texCoordOffset[0] = PARALLAX_HEIGHT_MAP_SCALE * view_direction[0] * initial_height;
@@ -295,7 +295,7 @@ static inline void Steep_Parallax_Mapping(const vec2 tex_coords, const vec3 view
             currentLayerHeight -= deltaHeight;
         }
     }
-#elif 1 /* Parallax Occlusion Mapping (POM) */
+#elif 0 /* Parallax Occlusion Mapping (POM) */
     vec2 prevTCoords = {0}; // get texture coordinates before collision (reverse operations)
     prevTCoords[0]   = currentTextureCoords[0] + dtex[0];
     prevTCoords[1]   = currentTextureCoords[1] + dtex[1];
@@ -310,12 +310,11 @@ static inline void Steep_Parallax_Mapping(const vec2 tex_coords, const vec3 view
     float weight = nextH / (nextH - prevH);
 
     // interpolation of texture coordinates
-    vec2 finalTexCoords     = {0};
     currentTextureCoords[0] = prevTCoords[0] * weight + currentTextureCoords[0] * (1.0f - weight);
     currentTextureCoords[1] = prevTCoords[1] * weight + currentTextureCoords[1] * (1.0f - weight);
 
     // interpolation of depth values
-    float parallaxHeight = currentLayerHeight + prevH * weight + nextH * (1.0 - weight);
+    // float parallaxHeight = currentLayerHeight + prevH * weight + nextH * (1.0 - weight);
 #endif
 
     // return updated texture coordinates
