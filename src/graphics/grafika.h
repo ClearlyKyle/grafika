@@ -107,7 +107,7 @@ static void grafika_startup(void)
         SDL_CreateRenderer(
             rend.window,
             -1,
-            SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+            SDL_RENDERER_ACCELERATED);
     ASSERT(rend.renderer, "Error - SDL_CreateRenderer: %s\n", SDL_GetError());
 
     rend.texture =
