@@ -1,6 +1,4 @@
 .vscode
-bin/*
-res/Camera
-res/Lorry
-res/Plane
+bin
+res/*
 testing
