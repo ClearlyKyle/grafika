@@ -71,7 +71,13 @@ static inline void grafika_setpixel(int x, int y, uint32_t colour)
 {
     ASSERT(y <= GRAFIKA_SCREEN_WIDTH, "y - %d out of bounds\n", y);
     ASSERT(x <= GRAFIKA_SCREEN_HEIGHT, "x - %d out of bounds\n", x);
+
+    // use the fact that 320 * y = 256 * y + 64 * y = y << 8 + y << 6
+#if IS_POWER_OF_2(GRAFIKA_SCREEN_WIDTH)
+    rend.pixels[(y << 9) + x] = colour;
+#else
     rend.pixels[(y * GRAFIKA_SCREEN_WIDTH) + x] = colour;
+#endif
 }
 
 static inline void grafika_clear(void)

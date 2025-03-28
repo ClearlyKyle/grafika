@@ -4,7 +4,8 @@
 #include <assert.h>
 #include <stdarg.h>
 
-#define UNUSED(VAR) ((void)(VAR))
+#define UNUSED(VAR)      ((void)(VAR))
+#define IS_POWER_OF_2(x) ((x) > 0 && ((x) & ((x)-1)) == 0)
 
 #define SAFE_FREE(POINTER_TO_DATA)    \
     {                                 \
