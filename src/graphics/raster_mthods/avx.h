@@ -175,7 +175,7 @@ static void draw_triangle(vec4 verts[3], vec2 texcoords[3])
 
     // pre fetch tex data
     const int      texw    = state.tex.w;
-    const int      texh    = state.tex.h;
+    const int      texh    = state.tex.h - 1;
     const int      texbpp  = state.tex.bpp;
     unsigned char *texdata = state.tex.data;
 
