@@ -5,66 +5,33 @@
 #include <stdbool.h>
 #include <assert.h>
 
-#include "shrifty.h"
-#include "../utils.h"
+#include "utils.h"
 
 #include "SDL2/SDL.h"
 #include "SDL2/SDL_image.h"
 
-#if _WIN32 || _WIN64
-#define aligned_malloc(size, alignemnt) _aligned_malloc(size, alignemnt)
-#define aligned_free(ptr)               _aligned_free(ptr)
-#else
-#define aligned_malloc(size, alignemnt) aligned_alloc(alignemnt, size)
-#define aligned_free(ptr)               free(ptr)
+#ifndef GRAFIKA_SCREEN_WIDTH
+    #define GRAFIKA_SCREEN_WIDTH (512)
+#endif
+#ifndef GRAFIKA_SCREEN_HEIGHT
+    #define GRAFIKA_SCREEN_HEIGHT (512)
 #endif
 
-#define GRAFIKA_SCREEN_WIDTH  512
-#define GRAFIKA_SCREEN_HEIGHT 512
-#define GRAFIKA_BPP           4
-
-typedef struct renderer
+struct grafika
 {
-    bool          quit;
-    SDL_Window   *window;
-    SDL_Renderer *renderer;
-    SDL_Texture  *texture;
-    uint32_t     *pixels;
-    float        *depth_buffer;
-} Renderer_t;
+    SDL_Window  *window;
+    SDL_Surface *surface;
+    uint32_t    *pixels;
+    float       *depth_buffer;
+};
 
-static Renderer_t rend = {0};
+static struct grafika rend = {0};
 
-static void grafika_present(void)
+static inline void grafika_present(void)
 {
-    void *px    = NULL;
-    int   pitch = 0;
-    SDL_LockTexture(rend.texture, NULL, &px, &pitch);
-    {
-        memcpy(px, rend.pixels, GRAFIKA_SCREEN_WIDTH * GRAFIKA_SCREEN_HEIGHT * sizeof(uint32_t));
-    }
-    SDL_UnlockTexture(rend.texture);
-    SDL_RenderClear(rend.renderer);
+    ASSERT(rend.surface, "Surface was not set in the renderer\n");
 
-    // Convert the SDL_Surface to an SDL_Texture
-    SDL_Texture *surfaceTexture = SDL_CreateTextureFromSurface(rend.renderer, text_state.surface);
-
-    SDL_RenderCopyEx(rend.renderer,
-                     rend.texture,
-                     NULL,
-                     NULL,
-                     0.0,
-                     NULL,
-                     SDL_FLIP_VERTICAL);
-
-    SDL_RenderCopy(rend.renderer, surfaceTexture, NULL, NULL);
-
-    // Clear the entire surface with black color
-    SDL_FillRect(text_state.surface, NULL, SDL_MapRGBA(text_state.surface->format, 0, 0, 0, 0));
-
-    SDL_RenderPresent(rend.renderer);
-
-    SDL_DestroyTexture(surfaceTexture);
+    SDL_UpdateWindowSurface(rend.window);
 }
 
 static inline void grafika_setpixel(int x, int y, uint32_t colour)
@@ -72,9 +39,8 @@ static inline void grafika_setpixel(int x, int y, uint32_t colour)
     ASSERT(y <= GRAFIKA_SCREEN_WIDTH, "y - %d out of bounds\n", y);
     ASSERT(x <= GRAFIKA_SCREEN_HEIGHT, "x - %d out of bounds\n", x);
 
-    // use the fact that 320 * y = 256 * y + 64 * y = y << 8 + y << 6
 #if IS_POWER_OF_2(GRAFIKA_SCREEN_WIDTH)
-    rend.pixels[(y << 9) + x] = colour;
+    rend.pixels[(y << 9) + x] = colour; // why 9? 1 << 9 == 512, y << 9 == y * 512
 #else
     rend.pixels[(y * GRAFIKA_SCREEN_WIDTH) + x] = colour;
 #endif
@@ -82,76 +48,48 @@ static inline void grafika_setpixel(int x, int y, uint32_t colour)
 
 static inline void grafika_clear(void)
 {
-    memset(rend.pixels, 0, GRAFIKA_SCREEN_WIDTH * GRAFIKA_SCREEN_HEIGHT * GRAFIKA_BPP); // clear pixels
-
-    // float *end = &rend.depth_buffer[GRAFIKA_SCREEN_WIDTH * GRAFIKA_SCREEN_HEIGHT];
-    // for (float *p = &rend.depth_buffer[0]; p != end; p++) // clear depth buffer
-    //     *p = 10.0f;
-
-    for (size_t i = 0; i < GRAFIKA_SCREEN_WIDTH * GRAFIKA_SCREEN_HEIGHT; i++)
-        rend.depth_buffer[i] = 10.0f;
+    memset(rend.pixels, 0, GRAFIKA_SCREEN_WIDTH * GRAFIKA_SCREEN_HEIGHT * rend.surface->format->BytesPerPixel);
+    memset(rend.depth_buffer, 0x48, GRAFIKA_SCREEN_WIDTH * GRAFIKA_SCREEN_HEIGHT * sizeof(float));
+    // why 0x48? floats are 4 bytes, 0x48 per byte, thus we get 0x4848 for 4 bytes, which is +8.57f
 }
 
-static void grafika_startup(void)
+static void grafika_startup(struct arena *arena)
 {
     if (0 != SDL_Init(SDL_INIT_VIDEO))
         fprintf(stderr, "SDL failed to initialize: %s\n", SDL_GetError()), abort();
 
-    IMG_Init(IMG_INIT_JPG | IMG_INIT_PNG);
+    int img_flags = IMG_INIT_JPG | IMG_INIT_PNG;
+    if (!(IMG_Init(img_flags) & img_flags))
+        fprintf(stderr, "IMG_Init failed to initialize: %s\n", IMG_GetError()), abort();
 
-    rend.window =
-        SDL_CreateWindow(
-            "Title",
-            SDL_WINDOWPOS_CENTERED_DISPLAY(0),
-            SDL_WINDOWPOS_CENTERED_DISPLAY(0),
-            512,
-            512,
-            0);
+    rend.window = SDL_CreateWindow("grafika",
+                                   SDL_WINDOWPOS_CENTERED,
+                                   SDL_WINDOWPOS_CENTERED,
+                                   GRAFIKA_SCREEN_WIDTH,
+                                   GRAFIKA_SCREEN_HEIGHT,
+                                   0);
     ASSERT(rend.window, "Error - SDL_CreateWindow: %s\n", SDL_GetError());
 
-    rend.renderer =
-        SDL_CreateRenderer(
-            rend.window,
-            -1,
-            SDL_RENDERER_ACCELERATED);
-    ASSERT(rend.renderer, "Error - SDL_CreateRenderer: %s\n", SDL_GetError());
+    rend.surface = SDL_GetWindowSurface(rend.window);
+    ASSERT(rend.surface, "Error - SDL_GetWindowSurface: %s\n", SDL_GetError());
 
-    rend.texture =
-        SDL_CreateTexture(
-            rend.renderer,
-            SDL_PIXELFORMAT_ABGR8888,
-            SDL_TEXTUREACCESS_STREAMING,
-            GRAFIKA_SCREEN_WIDTH,
-            GRAFIKA_SCREEN_HEIGHT);
-    ASSERT(rend.texture, "Error - SDL_CreateTexture: %s\n", SDL_GetError());
+    rend.pixels = rend.surface->pixels;
+    ASSERT(rend.pixels, "Error getting surface pixels\n");
 
-    rend.pixels = aligned_malloc(sizeof(uint32_t) * GRAFIKA_SCREEN_WIDTH * GRAFIKA_SCREEN_HEIGHT, 32);
-    ASSERT(rend.pixels, "Error allocating pixel buffer\n");
-
-    rend.depth_buffer = aligned_malloc(sizeof(float) * GRAFIKA_SCREEN_WIDTH * GRAFIKA_SCREEN_HEIGHT, 64);
+    rend.depth_buffer = arena_alloc_aligned(arena, sizeof(float) * GRAFIKA_SCREEN_WIDTH * GRAFIKA_SCREEN_HEIGHT, 16);
     ASSERT(rend.depth_buffer, "Error allocating depth buffer\n");
-
-    SDL_SetRenderTarget(rend.renderer, NULL);
-    SDL_SetRenderDrawColor(rend.renderer, 0, 0, 0, 0xFF);
-    SDL_SetRenderDrawBlendMode(rend.renderer, SDL_BLENDMODE_BLEND); // enable alpha blending
 }
 
 static void grafika_shutdown(void)
 {
     IMG_Quit();
 
-    if (rend.texture)
-        SDL_DestroyTexture(rend.texture), rend.texture = NULL;
-    if (rend.renderer)
-        SDL_DestroyRenderer(rend.renderer), rend.renderer = NULL;
-    if (rend.window)
-        SDL_DestroyWindow(rend.window), rend.window = NULL;
-    SDL_Quit();
+    if (rend.surface) SDL_FreeSurface(rend.surface);
+    if (rend.window) SDL_DestroyWindow(rend.window);
 
-    if (rend.pixels)
-        aligned_free(rend.pixels), rend.pixels = NULL;
-    if (rend.depth_buffer)
-        aligned_free(rend.depth_buffer), rend.depth_buffer = NULL;
+    // depth cleaned up by the arena
+
+    SDL_Quit();
 
     LOG("grafika_shutdown\n");
 }
