@@ -76,6 +76,9 @@ CFLAGS += -D_FORTIFY_SOURCE=3 # GCC 12,  will try to detect overflows in variabl
 #-fsanitize=float-cast-overflow
 #export ASAN_OPTIONS=strict_string_checks=1:detect_stack_use_after_return=1:check_initialization_order=1:strict_init_order=1:detect_invalid_pointer_pairs=2
 
+# ignore errors
+CFLAGS += -Wno-unused-function
+
 # release flags
 CFLAGS_RELEASE := -O3 -DNDEBUG -mconsole -fopenmp -msse4.1
 
