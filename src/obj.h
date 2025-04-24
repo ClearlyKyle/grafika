@@ -417,26 +417,27 @@ obj_t obj_load(const char *filename)
     return obj;
 }
 
-void obj_destroy(obj_t *obj)
+void obj_destroy(struct obj *obj)
 {
-    if (!obj)
-        return;
+    if (!obj) return;
 
-    SAFE_FREE(obj->pos);
-    SAFE_FREE(obj->norms);
-    SAFE_FREE(obj->texs);
-    SAFE_FREE(obj->indices);
+    if (obj->pos) free(obj->pos);
+    if (obj->norms) free(obj->norms);
+    if (obj->texs) free(obj->texs);
+    if (obj->indices) free(obj->indices);
 
-    for (size_t i = 0; i < obj->num_of_mats; i++)
+    if (obj->mats)
     {
-        SAFE_FREE(obj->mats[i].name);
-        SAFE_FREE(obj->mats[i].map_Kd);
-        SAFE_FREE(obj->mats[i].map_bump);
-        SAFE_FREE(obj->mats[i].disp);
-    }
-    SAFE_FREE(obj->mats);
+        for (size_t i = 0; i < obj->num_of_mats; i++)
+        {
+            if (obj->mats[i].name) free(obj->mats[i].name);
+            if (obj->mats[i].map_Kd) free(obj->mats[i].map_Kd);
+            if (obj->mats[i].map_bump) free(obj->mats[i].map_bump);
+            if (obj->mats[i].disp) free(obj->mats[i].disp);
+        }
 
-    *obj = (obj_t){0};
+        free(obj->mats);
+    }
 
     LOG("obj destroyed!\n");
 }
