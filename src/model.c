@@ -148,3 +148,166 @@ int main(int argc, char *argv[])
 
     return 0;
 }
+//
+// DEBUG
+//
+
+static struct debug_state _global_debug_state = {0};
+struct debug_state       *global_debug_state  = &_global_debug_state;
+
+static void _collate_debug_records();
+
+static void debug_frame_end(void)
+{
+    // swap what the current active table we are using
+    // const uint64_t event_array_index = global_debug_state->array_and_event_index >> 32;
+    // uint64_t       next_array_index  = event_array_index + 1;
+
+    ++global_debug_state->current_table_index;
+    if (global_debug_state->current_table_index >= DEBUG_FRAME_COLLECTION_COUNT)
+    {
+        global_debug_state->current_table_index = 0;
+    }
+
+    const uint64_t table_and_event_index = Atomic_Exchange_int64(&global_debug_state->table_and_event_index,
+                                                                 (uint64_t)global_debug_state->current_table_index << 32);
+
+    const uint32_t table_index = (const uint32_t)(table_and_event_index >> 32);
+    const uint32_t event_index = (const uint32_t)(table_and_event_index & 0xFFFFFFFF); // effectivly one past the last event written, a "event_count"
+
+    // LOG("Total events : %u\n", event_index);
+
+    global_debug_state->table[table_index].event_count = event_index; // storing the current count of events
+
+    _collate_debug_records(table_index);
+
+    // for (uint32_t record_index = 0; record_index < DEBUG_MAX_RECORDS; record_index++)
+    //{
+    //     struct debug_record *record = global_debug_state->records + record_index;
+
+    //    record->hit_count = 0;
+    //    // Atomic_Exchange_uint32(&record->hit_count, (uint64_t)0);
+    //}
+}
+
+static void _collate_debug_records(const uint32_t frame_index)
+{
+    // for each TIMED.. block, we are resetting the hit and cycle count
+    // remember the snapshots are what were rendered at the right of our counters,
+    // its a history of previous values stored, a saved "snapshot" of previous values
+    struct debug_table *table = &global_debug_state->table[frame_index];
+
+    // clear the old collected frame data that was in this slot
+    for (uint32_t record_index = 0; record_index < DEBUG_MAX_RECORDS; record_index++)
+    {
+        struct debug_snapshot *dst = global_debug_state->snapshots[record_index] + frame_index;
+
+        dst->hit_count = 0;
+        dst->cycles    = 0;
+    }
+
+    for (uint32_t event_index = 0; event_index < table->event_count; event_index++)
+    {
+        struct debug_event *event = table->events + event_index;
+
+        struct debug_snapshot *dst_snapshot = global_debug_state->snapshots[event->record_index] + frame_index;
+        struct debug_record   *src_record   = global_debug_state->records + event->record_index;
+
+        dst_snapshot->file_name     = src_record->file_name;
+        dst_snapshot->function_name = src_record->function_name;
+        dst_snapshot->line_number   = src_record->line_number;
+
+        if (event->type == debug_event_type_begin_block)
+        {
+            // LOG("Begin : %s\n", src_record->function_name);
+
+            dst_snapshot->hit_count += 1;
+            dst_snapshot->cycles -= event->cycles;
+        }
+        else if (event->type == debug_event_type_end_block)
+        {
+            dst_snapshot->cycles += event->cycles;
+        }
+        else
+        {
+            assert(false);
+        }
+    }
+}
+
+struct debug_statistic
+{
+    double   min, max, avg;
+    uint32_t count;
+};
+
+#define DEBUG_STAT_INIT \
+    {                   \
+        .min = DBL_MAX, .max = DBL_MIN, .avg = 0.0, .count = 0}
+
+static inline void update_debug_statistic(struct debug_statistic *stat, double val)
+{
+    stat->count++;
+
+    if (stat->min > val)
+        stat->min = val;
+
+    if (stat->max < val)
+        stat->max = val;
+
+    stat->avg += val;
+}
+
+static inline void end_debug_statistic(struct debug_statistic *stat)
+{
+    if (stat->count)
+    {
+        stat->avg = stat->avg / (double)stat->count;
+    }
+    else
+    {
+        stat->min = 0.0f;
+        stat->max = 0.0f;
+    }
+}
+
+static void debug_render_info(void)
+{
+    for (uint32_t record_index = 0; record_index < DEBUG_MAX_RECORDS; record_index++)
+    {
+        struct debug_statistic hit_count_stat       = DEBUG_STAT_INIT;
+        struct debug_statistic cycle_count_stat     = DEBUG_STAT_INIT;
+        struct debug_statistic hits_over_count_stat = DEBUG_STAT_INIT;
+
+        struct debug_snapshot *snapshot = &global_debug_state->snapshots[record_index][0];
+
+        if (snapshot->function_name)
+        {
+            for (uint32_t frame_index = 0; frame_index < DEBUG_FRAME_COLLECTION_COUNT; frame_index++)
+            {
+                struct debug_snapshot *snap = snapshot + frame_index;
+
+                update_debug_statistic(&hit_count_stat, (double)snap->hit_count);
+                update_debug_statistic(&cycle_count_stat, (double)snap->cycles);
+
+                double hits_over_count = 0.0;
+                if (snap->hit_count > 0)
+                {
+                    hits_over_count = (double)snap->cycles / (double)snap->hit_count;
+                }
+                update_debug_statistic(&hits_over_count_stat, hits_over_count);
+            }
+            end_debug_statistic(&hit_count_stat);
+            end_debug_statistic(&cycle_count_stat);
+            end_debug_statistic(&hits_over_count_stat);
+
+            text_write(2, 38 + (12 * (int)record_index),
+                       "%-24s %4ucalls %10ucy %10uc/call",
+                       snapshot->function_name,
+                       (uint32_t)hit_count_stat.avg,        // how many times the function was called
+                       (uint32_t)cycle_count_stat.avg,      // number of cycles total for all calls of the function
+                       (uint32_t)(hits_over_count_stat.avg) // average number of cycles per function call
+            );
+        }
+    }
+}
