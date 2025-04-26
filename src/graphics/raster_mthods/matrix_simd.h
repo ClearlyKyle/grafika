@@ -7,23 +7,23 @@
 #include "common.h"
 
 #ifdef LH_COORDINATE_SYSTEM
-#define VP_MATRIX                                                                                  \
-    (mat4)                                                                                         \
-    {                                                                                              \
-        {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.0f, 0.0f, 0.0f},                                    \
-            {0.0f, -0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 0.0f},                              \
-            {0.0f, 0.0f, 1.0f, 0.0f},                                                              \
-            {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 1.0f}, \
-    }
+    #define VP_MATRIX                                                                                  \
+        (mat4)                                                                                         \
+        {                                                                                              \
+            {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.0f, 0.0f, 0.0f},                                    \
+                {0.0f, -0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 0.0f},                              \
+                {0.0f, 0.0f, 1.0f, 0.0f},                                                              \
+                {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 1.0f}, \
+        }
 #else
-#define VP_MATRIX                                                                                  \
-    (mat4)                                                                                         \
-    {                                                                                              \
-        {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.0f, 0.0f, 0.0f},                                    \
-            {0.0f, 0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 0.0f},                               \
-            {0.0f, 0.0f, 1.0f, 0.0f},                                                              \
-            {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 1.0f}, \
-    }
+    #define VP_MATRIX                                                                                  \
+        (mat4)                                                                                         \
+        {                                                                                              \
+            {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.0f, 0.0f, 0.0f},                                    \
+                {0.0f, 0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 0.0f},                               \
+                {0.0f, 0.0f, 1.0f, 0.0f},                                                              \
+                {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 1.0f}, \
+        }
 #endif
 
 static float *transformed_vertices = NULL;
@@ -104,7 +104,6 @@ static void draw_triangle(vec4 verts[3], vec2 texcoords[3])
 
     for (int i = 1; i < 3; ++i)
     {
-        /* Update minimum and maximum values */
         if (proj[i][0] < fminX)
             fminX = proj[i][0];
         if (proj[i][1] < fminY)
@@ -115,7 +114,6 @@ static void draw_triangle(vec4 verts[3], vec2 texcoords[3])
             fmaxY = proj[i][1];
     }
 
-    /* Precompute constants */
     const int screen_width_minus_one  = GRAFIKA_SCREEN_WIDTH - 1;
     const int screen_height_minus_one = GRAFIKA_SCREEN_HEIGHT - 1;
 
@@ -174,10 +172,10 @@ static void draw_triangle(vec4 verts[3], vec2 texcoords[3])
     __m128 step_y     = _mm_set1_ps(0.5f);
 
     // pre fetch tex data
-    const int      texw    = state.tex.w;
-    const int      texh    = state.tex.h - 1;
-    const int      texbpp  = state.tex.bpp;
-    unsigned char *texdata = state.tex.data;
+    const int      texw    = raster_state.tex.w;
+    const int      texh    = raster_state.tex.h - 1;
+    const int      texbpp  = raster_state.tex.bpp;
+    unsigned char *texdata = raster_state.tex.data;
 
     float *pDepthBuffer = rend.depth_buffer;
 
@@ -223,7 +221,7 @@ static void draw_triangle(vec4 verts[3], vec2 texcoords[3])
                 return true;
             */
 
-#if 1 /* Tie Breaker Edge testing */
+#if 0 /* Tie Breaker Edge testing */
             // Edge 0 test
             __m128 Edge0Positive = _mm_cmplt_ps(Edge_Func0, _mm_setzero_ps());
             __m128 Edge0Negative = _mm_cmpgt_ps(Edge_Func0, _mm_setzero_ps());
@@ -315,7 +313,7 @@ static void draw_triangle(vec4 verts[3], vec2 texcoords[3])
                         _mm_set1_epi32(texw),
                         _mm_cvtps_epi32(pixV))));
 
-#if 0
+#if 1
             uint32_t offset[4] = {0};
             offset[0]          = (uint32_t)_mm_extract_epi32(texOffset, 0);
             offset[1]          = (uint32_t)_mm_extract_epi32(texOffset, 1);
@@ -328,11 +326,10 @@ static void draw_triangle(vec4 verts[3], vec2 texcoords[3])
             for (int i = 0; i < 4; ++i)
                 sample[i] = (char *)(texdata + offset[i]);
 
-            // A B G R
-            __m128i final_colour = _mm_setr_epi8(sample[0][0], sample[0][1], sample[0][2], -1,
-                                                 sample[1][0], sample[1][1], sample[1][2], -1,
-                                                 sample[2][0], sample[2][1], sample[2][2], -1,
-                                                 sample[3][0], sample[3][1], sample[3][2], -1);
+            __m128i final_colour = _mm_setr_epi8(sample[0][2], sample[0][0], sample[0][1], -1,
+                                                 sample[1][2], sample[1][0], sample[1][1], -1,
+                                                 sample[2][2], sample[2][0], sample[2][1], -1,
+                                                 sample[3][2], sample[3][0], sample[3][1], -1);
 
             uint32_t *pixel_location = &rend.pixels[pixel_index];
 
@@ -355,35 +352,33 @@ static void draw_triangle(vec4 verts[3], vec2 texcoords[3])
     }
 }
 
-static void draw_onexit(void)
-{
-    SAFE_FREE(transformed_vertices);
-}
+static void draw_onexit(void) {}
 
-static void draw_object(void)
+static void draw_object(struct arena *arena)
 {
-    mat4 cumMatrix = {0};
-    m4_mul_m4(VP_MATRIX, state.MVP, cumMatrix);
+    mat4 cum_matrix = {0};
+    m4_mul_m4(VP_MATRIX, raster_state.MVP, cum_matrix);
 
-    const obj_t object = state.obj;
+    const obj_t object = raster_state.obj;
 
     if (!transformed_vertices)
-        transformed_vertices = malloc(sizeof(vec4) * object.num_pos);
+        transformed_vertices = arena_alloc_aligned(arena, sizeof(vec4) * object.num_pos, 16);
 
     float *pos = object.pos;
-#pragma omp parallel for
-    // transform all verts to screen space
-    for (size_t i = 0; i < object.num_pos; i++)
-    {
-        vec4 vertex = {pos[i * 3 + 0],
-                       pos[i * 3 + 1],
-                       pos[i * 3 + 2],
-                       1.0f};
-        m4_mul_v4(cumMatrix, vertex, &transformed_vertices[i * 4]);
-    }
 
 #pragma omp parallel
     {
+        //  transform all verts to screen space
+#pragma omp parallel for
+        for (size_t i = 0; i < object.num_pos; i++)
+        {
+            vec4 vertex = {pos[i * 3 + 0],
+                           pos[i * 3 + 1],
+                           pos[i * 3 + 2],
+                           1.0f};
+            m4_mul_v4(cum_matrix, vertex, &transformed_vertices[i * 4]);
+        }
+
         float         *pPos     = transformed_vertices;
         float         *pTex     = object.texs;
         vertindices_t *pIndices = object.indices;
