@@ -3,17 +3,21 @@
 
 #include <math.h>
 
+#include "bench.h"
+
 #if 0
-#define LH_COORDINATE_SYSTEM
+    #define LH_COORDINATE_SYSTEM
 #else
-#define RH_COORDINATE_SYSTEM /* Blender uses RH */
+    #define RH_COORDINATE_SYSTEM /* Blender uses RH */
 #endif
 
 // GCC have funny inline rules, this will help
 #if defined(_MSC_VER)
-#define _INLINE __forceinline
+    #define MATEMATIKA_INLINE __forceinline
+#elif defined(__GNUC__) || defined(__clang__)
+    #define MATEMATIKA_INLINE static inline __attribute((always_inline))
 #else
-#define _INLINE static inline
+    #error "Unsupported compiler"
 #endif
 
 #define max(a, b) (((a) > (b)) ? (a) : (b))
@@ -21,7 +25,7 @@
 
 #define _PI          3.14159265358979323846264338327950288 /* pi */
 #define _PIf         ((float)_PI)
-#define DEG2RAD(DEG) ((DEG)*_PIf / 180.0f)
+#define DEG2RAD(DEG) ((DEG) * _PIf / 180.0f)
 
 typedef float vec2[2];
 typedef float vec3[3];
@@ -29,20 +33,20 @@ typedef float vec4[4];
 typedef vec4  mat4[4];
 typedef vec3  mat3[3];
 
-_INLINE
+MATEMATIKA_INLINE
 void v2_sub(const vec2 v0, const vec2 v1, vec2 res)
 {
     res[0] = v0[0] - v1[0];
     res[1] = v0[1] - v1[1];
 }
 
-_INLINE
+MATEMATIKA_INLINE
 float v3_dot(const vec3 v0, const vec3 v1)
 {
     return (v0[0] * v1[0] + v0[1] * v1[1] + v0[2] * v1[2]);
 }
 
-_INLINE
+MATEMATIKA_INLINE
 void v3_cross(const vec3 v1, const vec3 v2, vec3 res)
 {
     res[0] = v1[1] * v2[2] - v1[2] * v2[1];
@@ -50,7 +54,7 @@ void v3_cross(const vec3 v1, const vec3 v2, vec3 res)
     res[2] = v1[0] * v2[1] - v1[1] * v2[0];
 }
 
-_INLINE
+MATEMATIKA_INLINE
 void v3_add(const vec3 v1, const vec3 v2, vec3 res)
 {
     res[0] = v1[0] + v2[0];
@@ -58,7 +62,7 @@ void v3_add(const vec3 v1, const vec3 v2, vec3 res)
     res[2] = v1[2] + v2[2];
 }
 
-_INLINE
+MATEMATIKA_INLINE
 void v3_sub(const vec3 v0, const vec3 v1, vec3 res)
 {
     res[0] = v0[0] - v1[0];
@@ -66,7 +70,7 @@ void v3_sub(const vec3 v0, const vec3 v1, vec3 res)
     res[2] = v0[2] - v1[2];
 }
 
-_INLINE
+MATEMATIKA_INLINE
 void v3_div(const vec3 v, const float val, vec3 res)
 {
     res[0] = v[0] / val;
@@ -74,7 +78,7 @@ void v3_div(const vec3 v, const float val, vec3 res)
     res[2] = v[2] / val;
 }
 
-_INLINE
+MATEMATIKA_INLINE
 void v3_scale(vec3 v, const float val, vec3 res)
 {
     res[0] = v[0] * val;
@@ -82,13 +86,13 @@ void v3_scale(vec3 v, const float val, vec3 res)
     res[2] = v[2] * val;
 }
 
-_INLINE
+MATEMATIKA_INLINE
 void v3_broadcast(vec3 v, const float val)
 {
     v[0] = v[1] = v[2] = val;
 }
 
-_INLINE
+MATEMATIKA_INLINE
 void v3_clamp(vec3 v, const float min, const float max)
 {
     for (int i = 0; i < 3; i++)
@@ -100,7 +104,7 @@ void v3_clamp(vec3 v, const float min, const float max)
     }
 }
 
-_INLINE
+MATEMATIKA_INLINE
 void v3_reflect(vec3 I, vec3 N, vec3 dest)
 {
     const float dot = v3_dot(N, I) * 2.0f;
@@ -109,7 +113,7 @@ void v3_reflect(vec3 I, vec3 N, vec3 dest)
     v3_sub(I, dest, dest);
 }
 
-_INLINE
+MATEMATIKA_INLINE
 void v3_norm(vec3 v)
 {
     float length = sqrtf(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
@@ -125,7 +129,7 @@ void v3_norm(vec3 v)
     v[2] *= 1.0f / length;
 }
 
-_INLINE
+MATEMATIKA_INLINE
 float v3_edgefunc(const vec3 a, const vec3 b, const vec3 c)
 {
     return (c[0] - a[0]) * (b[1] - a[1]) - (c[1] - a[1]) * (b[0] - a[0]);
@@ -133,7 +137,7 @@ float v3_edgefunc(const vec3 a, const vec3 b, const vec3 c)
 
 // mat3 functions ---------------------------------------------------------------------------------
 
-_INLINE
+MATEMATIKA_INLINE
 void m3_from_m4(mat4 m4, mat3 m3)
 {
     m3[0][0] = m4[0][0];
@@ -147,7 +151,7 @@ void m3_from_m4(mat4 m4, mat3 m3)
     m3[2][2] = m4[2][2];
 }
 
-_INLINE
+MATEMATIKA_INLINE
 void m3_mul_v3(mat3 m, vec3 v, vec3 dest)
 {
     vec3 tmp = {0};
@@ -174,7 +178,7 @@ m3_scale(mat3 m, float s)
     m[2][2] *= s;
 }
 
-_INLINE
+MATEMATIKA_INLINE
 void m3_inv(mat3 mat, mat3 dest)
 {
     float det;
@@ -197,7 +201,7 @@ void m3_inv(mat3 mat, mat3 dest)
     m3_scale(dest, det);
 }
 
-_INLINE
+MATEMATIKA_INLINE
 void m3_transpose(mat3 m, mat3 dest)
 {
     dest[0][0] = m[0][0];
@@ -213,9 +217,11 @@ void m3_transpose(mat3 m, mat3 dest)
 
 // mat4 functions ---------------------------------------------------------------------------------
 
-_INLINE
+MATEMATIKA_INLINE
 void m4_mul_m4(mat4 m1, mat4 m2, mat4 dest)
 {
+    TIMED_BLOCK_BEGIN(m4_mul_m4);
+
     assert(m1 != m2);
 
     const float a00 = m1[0][0], a01 = m1[0][1], a02 = m1[0][2], a03 = m1[0][3],
@@ -244,9 +250,11 @@ void m4_mul_m4(mat4 m1, mat4 m2, mat4 dest)
     dest[3][1] = a01 * b30 + a11 * b31 + a21 * b32 + a31 * b33;
     dest[3][2] = a02 * b30 + a12 * b31 + a22 * b32 + a32 * b33;
     dest[3][3] = a03 * b30 + a13 * b31 + a23 * b32 + a33 * b33;
+
+    TIMED_BLOCK_END(m4_mul_m4);
 }
 
-_INLINE
+MATEMATIKA_INLINE
 void m4_mul_v4(mat4 m, vec4 v, vec4 res)
 {
     vec4 tmp = {0};
@@ -261,14 +269,14 @@ void m4_mul_v4(mat4 m, vec4 v, vec4 res)
     res[3] = tmp[3];
 }
 
-_INLINE
+MATEMATIKA_INLINE
 void m4_identity(mat4 m)
 {
     memset(m, 0, sizeof(mat4));
     m[0][0] = m[1][1] = m[2][2] = m[3][3] = 1.0f;
 }
 
-_INLINE
+MATEMATIKA_INLINE
 void m4_scale(mat4 m, const float s)
 {
     m[0][0] *= s;
@@ -289,7 +297,7 @@ void m4_scale(mat4 m, const float s)
     m[3][3] *= s;
 }
 
-_INLINE
+MATEMATIKA_INLINE
 void m4_transpose(mat4 m, mat4 dest)
 {
     dest[0][0] = m[0][0];
@@ -310,7 +318,7 @@ void m4_transpose(mat4 m, mat4 dest)
     dest[3][3] = m[3][3];
 }
 
-_INLINE
+MATEMATIKA_INLINE
 void m4_inv(mat4 mat, mat4 dest)
 {
     float       t[6];
@@ -365,7 +373,7 @@ void m4_inv(mat4 mat, mat4 dest)
     m4_scale(dest, det);
 }
 
-_INLINE
+MATEMATIKA_INLINE
 void m4_lookat(const vec3 eye, const vec3 center, const vec3 up, mat4 res)
 {
     vec3 forward;
@@ -429,7 +437,7 @@ void m4_lookat(const vec3 eye, const vec3 center, const vec3 up, mat4 res)
 #endif
 }
 
-_INLINE
+MATEMATIKA_INLINE
 void m4_proj(float fovy, float aspect, float nearZ, float farZ, mat4 res)
 {
     memset(res, 0, sizeof(mat4));
@@ -452,7 +460,7 @@ void m4_proj(float fovy, float aspect, float nearZ, float farZ, mat4 res)
 #endif
 }
 
-_INLINE
+MATEMATIKA_INLINE
 void m4_make_trans(float x, float y, float z, mat4 res)
 {
     m4_identity(res);
@@ -461,7 +469,7 @@ void m4_make_trans(float x, float y, float z, mat4 res)
     res[3][2] = z;
 }
 
-_INLINE
+MATEMATIKA_INLINE
 void m4_make_scale(float x, float y, float z, mat4 res)
 {
     m4_identity(res);
@@ -470,7 +478,7 @@ void m4_make_scale(float x, float y, float z, mat4 res)
     res[2][2] = z;
 }
 
-_INLINE
+MATEMATIKA_INLINE
 void m4_make_rot(mat4 matrix, float angle, char axis)
 {
     m4_identity(matrix);
@@ -480,41 +488,52 @@ void m4_make_rot(mat4 matrix, float angle, char axis)
 
     switch (axis)
     {
-    case 'x':
-    case 'X':
-        matrix[1][1] = c;
-        matrix[1][2] = -s;
-        matrix[2][1] = s;
-        matrix[2][2] = c;
-        break;
+        case 'x':
+        case 'X':
+            matrix[1][1] = c;
+            matrix[1][2] = -s;
+            matrix[2][1] = s;
+            matrix[2][2] = c;
+            break;
 
-    case 'y':
-    case 'Y':
-        matrix[0][0] = c;
-        matrix[0][2] = s;
-        matrix[2][0] = -s;
-        matrix[2][2] = c;
-        break;
+        case 'y':
+        case 'Y':
+            matrix[0][0] = c;
+            matrix[0][2] = s;
+            matrix[2][0] = -s;
+            matrix[2][2] = c;
+            break;
 
-    case 'z':
-    case 'Z':
-        matrix[0][0] = c;
-        matrix[0][1] = -s;
-        matrix[1][0] = s;
-        matrix[1][1] = c;
-        break;
+        case 'z':
+        case 'Z':
+            matrix[0][0] = c;
+            matrix[0][1] = -s;
+            matrix[1][0] = s;
+            matrix[1][1] = c;
+            break;
 
-    default:
-        // Invalid axis specified
-        break;
+        default:
+            // Invalid axis specified
+            break;
     }
 }
 
-_INLINE
+MATEMATIKA_INLINE
+void m4_make_rotx(mat4 matrix, float angle)
+{
+    m4_make_rot(matrix, angle, 'x');
+}
+
+MATEMATIKA_INLINE
+void m4_make_roty(mat4 matrix, float angle)
+{
+    m4_make_rot(matrix, angle, 'y');
+}
+
+MATEMATIKA_INLINE
 void AABB_make(vec3 pos[3], int AABB[4])
 {
-    /* Get the bounding box of the triangle,
-        setting pos[0] as starting values */
+    /* Get the bounding box of the triangle, setting pos[0] as starting values */
     float fminX = pos[0][0];
     float fminY = pos[0][1];
     float fmaxX = pos[0][0];
@@ -523,20 +542,25 @@ void AABB_make(vec3 pos[3], int AABB[4])
     for (int i = 1; i < 3; ++i)
     {
         /* Update minimum and maximum values for x and y */
-        const float x = pos[i][0];
-        const float y = pos[i][1];
+        // const float x = pos[i][0];
+        // const float y = pos[i][1];
 
-        if (x < fminX)
-            fminX = x;
-        if (y < fminY)
-            fminY = y;
+        // if (x < fminX) fminX = x;
+        // if (y < fminY) fminY = y;
 
-        if (x > fmaxX)
-            fmaxX = x;
-        if (y > fmaxY)
-            fmaxY = y;
+        // if (x > fmaxX) fmaxX = x;
+        // if (y > fmaxY) fmaxY = y;
+
+        if (pos[i][0] < fminX)
+            fminX = pos[i][0];
+        if (pos[i][1] < fminY)
+            fminY = pos[i][1];
+        if (pos[i][0] > fmaxX)
+            fmaxX = pos[i][0];
+        if (pos[i][1] > fmaxY)
+            fmaxY = pos[i][1];
     }
-    /* Clamp values to valid range */
+
     AABB[0] = max(0, min((int)fminX, GRAFIKA_SCREEN_WIDTH - 1));  // minX
     AABB[1] = max(0, min((int)fminY, GRAFIKA_SCREEN_HEIGHT - 1)); // minY
     AABB[2] = max(0, min((int)fmaxX, GRAFIKA_SCREEN_WIDTH - 1));  // maxX
