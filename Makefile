@@ -2,15 +2,15 @@
 # Check for correct indentation!
 
 # Build settings
-CC = gcc-12
+CC = gcc
 PKG_CONFIG = pkg-config
 
-CFLAGS := -g -std=gnu11 -m64
+CFLAGS := -g -std=gnu11
 
 # CFLAGS += -gdwarf-2 # DrMemory things
 
-CFLAGS += -fopenmp -msse4.1
-#CFLAGS += -mconsole
+CFLAGS += -fopenmp -march=native
+CFLAGS += -mconsole
 
 CFLAGS += -Wall -Wextra -Wpedantic
 #CFLAGS += -Werror # treat warnings as errors
