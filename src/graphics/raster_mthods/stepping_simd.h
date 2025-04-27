@@ -389,17 +389,21 @@ static void draw_triangle(const struct triangle t)
     const __m128 A1 = _mm_set1_ps(dY1);
     const __m128 A2 = _mm_set1_ps(dY2);
 
-    __m128 A0_start = _mm_mul_ps(A0, _mm_add_ps(_mm_setr_ps(0.5f, 1.5f, 2.5f, 3.5f), _mm_set1_ps((float)AABB[0] + 0.5f)));
-    __m128 A1_start = _mm_mul_ps(A1, _mm_add_ps(_mm_setr_ps(0.5f, 1.5f, 2.5f, 3.5f), _mm_set1_ps((float)AABB[0] + 0.5f)));
-    __m128 A2_start = _mm_mul_ps(A2, _mm_add_ps(_mm_setr_ps(0.5f, 1.5f, 2.5f, 3.5f), _mm_set1_ps((float)AABB[0] + 0.5f)));
-
     const __m128 B0 = _mm_set1_ps(dX0);
     const __m128 B1 = _mm_set1_ps(dX1);
     const __m128 B2 = _mm_set1_ps(dX2);
 
-    __m128 B0_start = _mm_mul_ps(B0, _mm_set1_ps((float)AABB[1] + 0.5f));
-    __m128 B1_start = _mm_mul_ps(B1, _mm_set1_ps((float)AABB[1] + 0.5f));
-    __m128 B2_start = _mm_mul_ps(B2, _mm_set1_ps((float)AABB[1] + 0.5f));
+    __m128 x_step_amount    = _mm_setr_ps(0.5f, 1.5f, 2.5f, 3.5f);
+    __m128 x_starting_pixel = _mm_set1_ps((float)AABB[0] + 0.5f);
+    __m128 mm_x             = _mm_add_ps(x_step_amount, x_starting_pixel);
+    __m128 A0_start         = _mm_mul_ps(A0, mm_x);
+    __m128 A1_start         = _mm_mul_ps(A1, mm_x);
+    __m128 A2_start         = _mm_mul_ps(A2, mm_x);
+
+    __m128 y_starting_pixel = _mm_set1_ps((float)AABB[1] + 0.5f);
+    __m128 B0_start         = _mm_mul_ps(B0, y_starting_pixel);
+    __m128 B1_start         = _mm_mul_ps(B1, y_starting_pixel);
+    __m128 B2_start         = _mm_mul_ps(B2, y_starting_pixel);
 
     __m128 E0 = _mm_add_ps(_mm_add_ps(A0_start, B0_start), _mm_set1_ps(C0));
     __m128 E1 = _mm_add_ps(_mm_add_ps(A1_start, B1_start), _mm_set1_ps(C1));
@@ -409,13 +413,22 @@ static void draw_triangle(const struct triangle t)
     __m128 B1_inc = B1;
     __m128 B2_inc = B2;
 
-    __m128 A0_inc = _mm_mul_ps(A0, _mm_set1_ps(4.0f));
-    __m128 A1_inc = _mm_mul_ps(A1, _mm_set1_ps(4.0f));
-    __m128 A2_inc = _mm_mul_ps(A2, _mm_set1_ps(4.0f));
+    __m128 mm_4   = _mm_set1_ps(4.0f);
+    __m128 A0_inc = _mm_mul_ps(A0, mm_4);
+    __m128 A1_inc = _mm_mul_ps(A1, mm_4);
+    __m128 A2_inc = _mm_mul_ps(A2, mm_4);
 
     const __m128 mm_w_vals0 = _mm_set1_ps(w_vals[0]);
     const __m128 mm_w_vals1 = _mm_set1_ps(w_vals[1]);
     const __m128 mm_w_vals2 = _mm_set1_ps(w_vals[2]);
+
+    const __m128 U0 = _mm_set1_ps(t.tex[0][0]);
+    const __m128 U1 = _mm_set1_ps(t.tex[1][0]);
+    const __m128 U2 = _mm_set1_ps(t.tex[2][0]);
+
+    const __m128 V0 = _mm_set1_ps(t.tex[0][1]);
+    const __m128 V1 = _mm_set1_ps(t.tex[1][1]);
+    const __m128 V2 = _mm_set1_ps(t.tex[2][1]);
 
     // pre fetch tex data
     const int      texw    = raster_state.tex.w;
@@ -429,6 +442,25 @@ static void draw_triangle(const struct triangle t)
 
     const float depth_step = dY1 * screenspace[1][2] + dY2 * screenspace[2][2];
 
+    __m128 zstep = _mm_set1_ps(depth_step * 4);
+    __m128 ss0   = _mm_set1_ps(screenspace[0][2]);
+    __m128 ss1   = _mm_set1_ps(screenspace[1][2]);
+    __m128 ss2   = _mm_set1_ps(screenspace[2][2]);
+
+    __m128 one       = _mm_set1_ps(1.0f);
+    __m128 zero      = _mm_setzero_ps();
+    __m128 texWidth  = _mm_set1_ps((float)texw - 1);
+    __m128 texHeight = _mm_set1_ps((float)texh - 1);
+
+    __m128i itexWidth = _mm_set1_epi32(texw);
+    __m128i itexBpp   = _mm_set1_epi32(texbpp);
+
+    const __m128i shuffle_mask = _mm_setr_epi8(2, 1, 0, -1, // texel0 (B, G, R, A)
+                                               2, 1, 0, -1, // texel1
+                                               2, 1, 0, -1, // texel2
+                                               2, 1, 0, -1  // texel3
+    );
+
     // rasterize
     for (int y  = AABB[1]; y <= AABB[3]; ++y,
              E0 = _mm_add_ps(E0, B0_inc),
@@ -439,35 +471,25 @@ static void draw_triangle(const struct triangle t)
         __m128 betaa = E1;
         __m128 gamma = E2;
 
-        float z0 = (screenspace[0][2] + screenspace[1][2] * betaa[0] + screenspace[2][2] * gamma[0]);
-        float z1 = (screenspace[0][2] + screenspace[1][2] * betaa[1] + screenspace[2][2] * gamma[1]);
-        float z2 = (screenspace[0][2] + screenspace[1][2] * betaa[2] + screenspace[2][2] * gamma[2]);
-        float z3 = (screenspace[0][2] + screenspace[1][2] * betaa[3] + screenspace[2][2] * gamma[3]);
+        __m128 z = _mm_add_ps(_mm_add_ps(ss0, _mm_mul_ps(ss1, betaa)), _mm_mul_ps(ss2, gamma));
 
         for (int x     = AABB[0]; x <= AABB[2]; x += 4,
                  alpha = _mm_add_ps(alpha, A0_inc),
                  betaa = _mm_add_ps(betaa, A1_inc),
                  gamma = _mm_add_ps(gamma, A2_inc),
-                 z0 += 4 * depth_step,
-                 z1 += 4 * depth_step,
-                 z2 += 4 * depth_step,
-                 z3 += 4 * depth_step)
+                 z     = _mm_add_ps(z, zstep))
         {
-            __m128 Edge0FuncMask = _mm_cmpgt_ps(alpha, _mm_setzero_ps());
-            __m128 Edge1FuncMask = _mm_cmpgt_ps(betaa, _mm_setzero_ps());
-            __m128 Edge2FuncMask = _mm_cmpgt_ps(gamma, _mm_setzero_ps());
-
-            __m128 EdgeFuncTestResult = _mm_and_ps(Edge0FuncMask, _mm_and_ps(Edge1FuncMask, Edge2FuncMask));
+            // Edge function tests
+            __m128 EdgeFuncTestResult = _mm_and_ps(_mm_and_ps(
+                                                       _mm_cmpgt_ps(alpha, zero),
+                                                       _mm_cmpgt_ps(betaa, zero)),
+                                                   _mm_cmpgt_ps(gamma, zero));
 
             if (_mm_movemask_ps(EdgeFuncTestResult) == 0) continue;
 
             __m128 wait0 = _mm_mul_ps(alpha, mm_w_vals0); // Bary A
             __m128 wait1 = _mm_mul_ps(betaa, mm_w_vals1); // B
             __m128 wait2 = _mm_mul_ps(gamma, mm_w_vals2); // C
-
-            // wait0 = _mm_mul_ps(wait0, mm_w_vals0);
-            // wait1 = _mm_mul_ps(wait1, mm_w_vals1);
-            // wait2 = _mm_mul_ps(wait2, mm_w_vals2);
 
             const __m128 cf = _mm_rcp_ps(_mm_add_ps(_mm_add_ps(wait0, wait1), wait2));
 
@@ -477,69 +499,80 @@ static void draw_triangle(const struct triangle t)
 
             const size_t pixel_index = (const size_t)(y * GRAFIKA_SCREEN_WIDTH + x);
 
-            // const float z0 = (clipspace[0][3] * wait0[0] + clipspace[1][3] * wait1[0] + clipspace[2][3] * wait2[0]);
-            // const float z1 = (clipspace[0][3] * wait0[1] + clipspace[1][3] * wait1[1] + clipspace[2][3] * wait2[1]);
-            // const float z2 = (clipspace[0][3] * wait0[2] + clipspace[1][3] * wait1[2] + clipspace[2][3] * wait2[2]);
-            // const float z3 = (clipspace[0][3] * wait0[3] + clipspace[1][3] * wait1[3] + clipspace[2][3] * wait2[3]);
+            float       *pDepth       = &rend.depth_buffer[pixel_index];
+            const __m128 DepthCurrent = _mm_load_ps(pDepth);
 
-            const __m128 interpolated_z = _mm_setr_ps(z0, z1, z2, z3);
+            const __m128 DepthRes = _mm_cmple_ps(z, DepthCurrent);
 
-            float       *pDepth          = &rend.depth_buffer[pixel_index];
-            const __m128 sseDepthCurrent = _mm_load_ps(pDepth);
-            // Perform LESS_THAN_EQUAL depth test
-            const __m128 sseDepthRes = _mm_cmple_ps(interpolated_z, sseDepthCurrent);
+            if (_mm_movemask_ps(DepthRes) == 0) continue;
 
-            if (_mm_movemask_ps(sseDepthRes) == 0) continue;
-
-            const __m128 sseWriteMask = _mm_and_ps(sseDepthRes, EdgeFuncTestResult);
+            const __m128 sseWriteMask = _mm_and_ps(DepthRes, EdgeFuncTestResult);
 
             // Write interpolated Z values
-            _mm_maskmoveu_si128(
-                _mm_castps_si128(interpolated_z),
-                _mm_castps_si128(sseWriteMask),
-                (char *)pDepth);
+            __m128 blended = _mm_blendv_ps(DepthCurrent, z, sseWriteMask);
+            _mm_store_ps(pDepth, blended);
 
-            float u0 = (t.tex[0][0] * wait0[0] + t.tex[1][0] * wait1[0] + t.tex[2][0] * wait2[0]);
-            float u1 = (t.tex[0][0] * wait0[1] + t.tex[1][0] * wait1[1] + t.tex[2][0] * wait2[1]);
-            float u2 = (t.tex[0][0] * wait0[2] + t.tex[1][0] * wait1[2] + t.tex[2][0] * wait2[2]);
-            float u3 = (t.tex[0][0] * wait0[3] + t.tex[1][0] * wait1[3] + t.tex[2][0] * wait2[3]);
+            __m128 pixU = _mm_add_ps(_mm_mul_ps(U2, wait2),
+                                     _mm_add_ps(
+                                         _mm_mul_ps(U1, wait1),
+                                         _mm_mul_ps(U0, wait0)));
 
-            float v0 = (t.tex[0][1] * wait0[0] + t.tex[1][1] * wait1[0] + t.tex[2][1] * wait2[0]);
-            float v1 = (t.tex[0][1] * wait0[1] + t.tex[1][1] * wait1[1] + t.tex[2][1] * wait2[1]);
-            float v2 = (t.tex[0][1] * wait0[2] + t.tex[1][1] * wait1[2] + t.tex[2][1] * wait2[2]);
-            float v3 = (t.tex[0][1] * wait0[3] + t.tex[1][1] * wait1[3] + t.tex[2][1] * wait2[3]);
+            __m128 pixV = _mm_add_ps(_mm_mul_ps(V2, wait2),
+                                     _mm_add_ps(
+                                         _mm_mul_ps(V1, wait1),
+                                         _mm_mul_ps(V0, wait0)));
 
-            u0 = SDL_clamp(u0, 0.0f, 1.0f);
-            u1 = SDL_clamp(u1, 0.0f, 1.0f);
-            u2 = SDL_clamp(u2, 0.0f, 1.0f);
-            u3 = SDL_clamp(u3, 0.0f, 1.0f);
+            // Clamp pixU and pixV
+            pixU = _mm_max_ps(_mm_min_ps(pixU, one), zero);
+            pixV = _mm_max_ps(_mm_min_ps(pixV, one), zero);
 
-            v0 = SDL_clamp(v0, 0.0f, 1.0f);
-            v1 = SDL_clamp(v1, 0.0f, 1.0f);
-            v2 = SDL_clamp(v2, 0.0f, 1.0f);
-            v3 = SDL_clamp(v3, 0.0f, 1.0f);
+            pixU = _mm_mul_ps(pixU, texWidth);
+            pixV = _mm_mul_ps(pixV, texHeight);
 
-            u0 *= (float)texw - 1;
-            u1 *= (float)texw - 1;
-            u2 *= (float)texw - 1;
-            u3 *= (float)texw - 1;
+            // (U + tex.width * V) * tex.bpp
+            __m128i texOffset = _mm_add_epi32(
+                _mm_cvtps_epi32(pixU),
+                _mm_mullo_epi32(_mm_cvtps_epi32(pixV), itexWidth));
+            texOffset = _mm_mullo_epi32(texOffset, itexBpp);
 
-            v0 *= (float)texh - 1;
-            v1 *= (float)texh - 1;
-            v2 *= (float)texh - 1;
-            v3 *= (float)texh - 1;
+#if 0
+            unsigned char *texcolour0 = texdata + _mm_extract_epi32(texOffset, 0);
+            unsigned char *texcolour1 = texdata + _mm_extract_epi32(texOffset, 1);
+            unsigned char *texcolour2 = texdata + _mm_extract_epi32(texOffset, 2);
+            unsigned char *texcolour3 = texdata + _mm_extract_epi32(texOffset, 3);
 
-            unsigned char *texcolour0 = texdata + (((int)u0 + texw * (int)v0) * texbpp);
-            unsigned char *texcolour1 = texdata + (((int)u1 + texw * (int)v1) * texbpp);
-            unsigned char *texcolour2 = texdata + (((int)u2 + texw * (int)v2) * texbpp);
-            unsigned char *texcolour3 = texdata + (((int)u3 + texw * (int)v3) * texbpp);
-
-            __m128i final_colour = _mm_setr_epi8(texcolour0[2], texcolour0[1], texcolour0[0], -1,
-                                                 texcolour1[2], texcolour1[1], texcolour1[0], -1,
-                                                 texcolour2[2], texcolour2[1], texcolour2[0], -1,
-                                                 texcolour3[2], texcolour3[1], texcolour3[0], -1);
+            __m128i final_colour = _mm_setr_epi8((char)texcolour0[2], (char)texcolour0[1], (char)texcolour0[0], -1,
+                                                 (char)texcolour1[2], (char)texcolour1[1], (char)texcolour1[0], -1,
+                                                 (char)texcolour2[2], (char)texcolour2[1], (char)texcolour2[0], -1,
+                                                 (char)texcolour3[2], (char)texcolour3[1], (char)texcolour3[0], -1);
 
             uint32_t *pixel_location = &rend.pixels[pixel_index];
+#else
+            // Load 4 offsets from texOffset (assuming texOffset is __m128i)
+            const int32_t *offsets = (const int32_t *)&texOffset;
+
+            //// Gather all 4 RGB pixels at once (AVX2)
+            //__m128i texel0 = _mm_load_si128((__m128i *)(texdata + offsets[0]));
+            //__m128i texel1 = _mm_load_si128((__m128i *)(texdata + offsets[1]));
+            //__m128i texel2 = _mm_load_si128((__m128i *)(texdata + offsets[2]));
+            //__m128i texel3 = _mm_load_si128((__m128i *)(texdata + offsets[3]));
+
+            //// Combine and shuffle into final RGBA format
+            //__m128i final_colour = _mm_shuffle_epi8(
+            //    _mm_setr_epi32(_mm_cvtsi128_si32(texel0),
+            //                   _mm_cvtsi128_si32(texel1),
+            //                   _mm_cvtsi128_si32(texel2),
+            //                   _mm_cvtsi128_si32(texel3)),
+            //    shuffle_mask);
+
+            __m128i texels = _mm_setr_epi32(*(const int32_t *)(texdata + offsets[0]),
+                                            *(const int32_t *)(texdata + offsets[1]),
+                                            *(const int32_t *)(texdata + offsets[2]),
+                                            *(const int32_t *)(texdata + offsets[3]));
+
+            uint32_t *pixel_location = &rend.pixels[pixel_index];
+            __m128i   final_colour   = _mm_shuffle_epi8(texels, shuffle_mask);
+#endif
 
 #if 1 /* Fabian method */
             const __m128i original_pixel_data = _mm_load_si128((__m128i *)pixel_location);
@@ -549,12 +582,14 @@ static void draw_triangle(const struct triangle t)
                                                        _mm_andnot_si128(write_mask, original_pixel_data));
 
             _mm_store_si128((__m128i *)pixel_location, masked_output);
+#elif 0
+            const __m128i original_pixel_data = _mm_loadu_si128((__m128i *)pixel_location);
+            const __m128i write_mask          = _mm_castps_si128(sseWriteMask);
+            const __m128i masked_output       = _mm_blendv_epi8(original_pixel_data, final_colour, write_mask);
+            _mm_store_si128((__m128i *)pixel_location, masked_output);
 #else
-            // Mask-store 4-sample fragment values
-            _mm_maskstore_epi32(
-                (int *)pixel_location,
-                _mm_castps_si128(EdgeFuncTestResult),
-                final_colour);
+            const __m128i write_mask = _mm_castps_si128(sseWriteMask);
+            _mm_maskstore_epi32((int *)&rend.pixels[pixel_index], write_mask, final_colour);
 #endif
         }
     }
@@ -564,14 +599,16 @@ static void draw_onexit(void) {} /* Do nothing */
 
 static void draw_object(struct arena *arena)
 {
-    // #pragma omp parallel
+    UNUSED(arena);
+
+#pragma omp parallel
     {
         obj_t          obj      = raster_state.obj;
         float         *pPos     = obj.pos;
         float         *pTex     = obj.texs;
         vertindices_t *pIndices = obj.indices;
 
-        // #pragma omp for
+#pragma omp for
         for (size_t i = 0; i < obj.num_f_rows; ++i)
         {
             struct triangle t = {0};
