@@ -27,7 +27,7 @@ static struct shrifty shrifty_state;
 
 static void text_startup(SDL_Surface *surface, int font_size)
 {
-    if (0 != TTF_Init()) LOGE("TTF failed to initialize: %s\n", TTF_GetError()), abort();
+    if (0 != TTF_Init()) LOGE("TTF failed to initialize: %s\n", TTF_GetError());
 
     shrifty_state.font = TTF_OpenFont("c:\\WINDOWS\\Fonts\\COUR.TTF", font_size);
     ASSERT(shrifty_state.font, "Failed to load the font : %s\n", TTF_GetError());
@@ -85,8 +85,6 @@ static void text_write(int x, int y, const char *formatted_text, ...)
                                        .h       = surf->h};
 
                 shrifty_glyph_cache[character] = glyph;
-
-                LOG("Chaching : %c - width : %d\n", *c, advance);
             }
         }
         else
