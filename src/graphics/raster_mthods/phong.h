@@ -6,11 +6,9 @@
 #define PHONG_AMBI_AMOUNT 0.2f   /* 0.0f -> 1.0f */
 #define PHONG_SPEC_AMOUNT 0.4f   /* 0.0f -> 1.0f */
 #define PHONG_SHININESS   128.0f /* pow of 2 pls */
-#define LIGHT_POSITION   \
-    (vec3)               \
-    {                    \
-        0.5f, 0.5f, 5.0f \
-    }
+#define LIGHT_POSITION \
+    (vec3){            \
+        0.5f, 0.5f, 5.0f}
 
 typedef struct phong
 {
@@ -21,23 +19,23 @@ static phong_t phong_data           = {0};
 static float  *transformed_vertices = NULL;
 
 #ifdef LH_COORDINATE_SYSTEM
-#define VP_MATRIX                                                                                  \
-    (mat4)                                                                                         \
-    {                                                                                              \
-        {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.0f, 0.0f, 0.0f},                                    \
-            {0.0f, -0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 0.0f},                              \
-            {0.0f, 0.0f, 1.0f, 0.0f},                                                              \
-            {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 1.0f}, \
-    }
+    #define VP_MATRIX                                                                                  \
+        (mat4)                                                                                         \
+        {                                                                                              \
+            {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.0f, 0.0f, 0.0f},                                    \
+                {0.0f, -0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 0.0f},                              \
+                {0.0f, 0.0f, 1.0f, 0.0f},                                                              \
+                {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 1.0f}, \
+        }
 #else
-#define VP_MATRIX                                                                                  \
-    (mat4)                                                                                         \
-    {                                                                                              \
-        {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.0f, 0.0f, 0.0f},                                    \
-            {0.0f, 0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 0.0f},                               \
-            {0.0f, 0.0f, 1.0f, 0.0f},                                                              \
-            {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 1.0f}, \
-    }
+    #define VP_MATRIX                                                                                  \
+        (mat4)                                                                                         \
+        {                                                                                              \
+            {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.0f, 0.0f, 0.0f},                                    \
+                {0.0f, 0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 0.0f},                               \
+                {0.0f, 0.0f, 1.0f, 0.0f},                                                              \
+                {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 1.0f}, \
+        }
 #endif
 
 static inline bool Tie_Breaker_AB_Test(const vec3 E)
@@ -179,9 +177,9 @@ static void draw_triangle(vec4 trans[3], vec3 raw[3], vec3 nrm[3], vec2 texcoord
 
     // get world space vertex positions
     vec4 ws[3] = {0};
-    m4_mul_v4(state.model, (vec4){raw[0][0], raw[0][1], raw[0][2], 1.0f}, ws[0]);
-    m4_mul_v4(state.model, (vec4){raw[1][0], raw[1][1], raw[1][2], 1.0f}, ws[1]);
-    m4_mul_v4(state.model, (vec4){raw[2][0], raw[2][1], raw[2][2], 1.0f}, ws[2]);
+    m4_mul_v4(raster_state.model, (vec4){raw[0][0], raw[0][1], raw[0][2], 1.0f}, ws[0]);
+    m4_mul_v4(raster_state.model, (vec4){raw[1][0], raw[1][1], raw[1][2], 1.0f}, ws[1]);
+    m4_mul_v4(raster_state.model, (vec4){raw[2][0], raw[2][1], raw[2][2], 1.0f}, ws[2]);
 
     // calculate bounding rectangle
     int AABB[4] = {0};
@@ -198,10 +196,10 @@ static void draw_triangle(vec4 trans[3], vec3 raw[3], vec3 nrm[3], vec2 texcoord
     const bool pre_comp_tie_E2 = Tie_Breaker_AB_Test(E2);
 
     // pre fetch tex data
-    const int      texw    = state.tex.w;
-    const int      texh    = state.tex.h;
-    const int      texbpp  = state.tex.bpp;
-    unsigned char *texdata = state.tex.data;
+    const int      texw    = raster_state.tex.w;
+    const int      texh    = raster_state.tex.h;
+    const int      texbpp  = raster_state.tex.bpp;
+    unsigned char *texdata = raster_state.tex.data;
 
     float *pDepthBuffer = rend.depth_buffer;
 
@@ -281,6 +279,10 @@ static void draw_triangle(vec4 trans[3], vec3 raw[3], vec3 nrm[3], vec2 texcoord
             diffuse_colour[1] = texcolour[1] / 255.0f;
             diffuse_colour[2] = texcolour[2] / 255.0f;
 
+            // diffuse_colour[0] = (float)(texcolour[0] >> 8);
+            // diffuse_colour[1] = (float)(texcolour[1] >> 8);
+            // diffuse_colour[2] = (float)(texcolour[2] >> 8);
+
             vec3 frag_colour = {0};
             phong_lighting(diffuse_colour, frag_pos, frag_nrm, frag_colour);
 
@@ -288,47 +290,46 @@ static void draw_triangle(vec4 trans[3], vec3 raw[3], vec3 nrm[3], vec2 texcoord
             unsigned char gre = (unsigned char)(frag_colour[1] * 255.0f);
             unsigned char blu = (unsigned char)(frag_colour[2] * 255.0f);
 
-            uint32_t pixelcolour = ((uint32_t)0xFFU << 24) | ((uint32_t)blu << 16) | ((uint32_t)gre << 8) | (uint32_t)red;
+            // uint32_t pixelcolour = ((uint32_t)0xFFU << 24) | ((uint32_t)blu << 16) | ((uint32_t)gre << 8) | (uint32_t)red;
+            uint32_t pixel_colour = ((uint32_t)red << 16) | ((uint32_t)gre << 8) | (uint32_t)blu;
 
-            grafika_setpixel(x, y, pixelcolour);
+            grafika_setpixel(x, y, pixel_colour);
         }
     }
 }
 
-static void draw_onexit(void)
-{
-    SAFE_FREE(transformed_vertices);
-}
+static void draw_onexit(void) {} /* Do nothing */
 
-static void draw_object(void)
+static void draw_object(struct arena *arena)
 {
     mat4 cum_matrix = {0};
-    m4_mul_m4(VP_MATRIX, state.MVP, cum_matrix);
+    m4_mul_m4(VP_MATRIX, raster_state.MVP, cum_matrix);
 
     mat3 tmp = {0};
-    m3_from_m4(state.model, tmp);
+    m3_from_m4(raster_state.model, tmp);
     m3_inv(tmp, tmp);
     m3_transpose(tmp, phong_data.nrm_matrix);
 
-    const obj_t object = state.obj;
+    const obj_t object = raster_state.obj;
 
     if (!transformed_vertices)
-        transformed_vertices = malloc(sizeof(vec4) * object.num_pos);
-
-    float *pos = object.pos;
-#pragma omp parallel for
-    // transform all verts to screen space
-    for (size_t i = 0; i < object.num_pos; i++)
-    {
-        vec4 vertex = {pos[i * 3 + 0],
-                       pos[i * 3 + 1],
-                       pos[i * 3 + 2],
-                       1.0f};
-        m4_mul_v4(cum_matrix, vertex, &transformed_vertices[i * 4]);
-    }
+        transformed_vertices = arena_alloc_aligned(arena, sizeof(vec4) * object.num_pos, 16);
 
 #pragma omp parallel
     {
+        float *pos = object.pos;
+
+#pragma omp for
+        // transform all verts to screen space
+        for (size_t i = 0; i < object.num_pos; i++)
+        {
+            vec4 vertex = {pos[i * 3 + 0],
+                           pos[i * 3 + 1],
+                           pos[i * 3 + 2],
+                           1.0f};
+            m4_mul_v4(cum_matrix, vertex, &transformed_vertices[i * 4]);
+        }
+
         float         *pPos     = transformed_vertices;
         float         *pRawpos  = object.pos;
         float         *pNrm     = object.norms;
