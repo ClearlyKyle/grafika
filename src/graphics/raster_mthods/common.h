@@ -2,26 +2,29 @@
 #define __COMMON_H__
 
 #include "../grafika.h"
+#include "../shrifty.h"
+#include "../../utils.h"
 #include "../../tex.h"
 #include "../../obj.h"
 #include "../../timer.h"
 #include "../../matematika.h"
+#include "../../bench.h"
 
-typedef struct triangle
+struct triangle
 {
     vec3 pos[3];
     vec2 tex[3];
-} triangle_t;
+};
 
-typedef struct rasterstate
+struct rasterstate
 {
-    mat4  model;
-    mat4  MVP;
-    vec3  cam_pos;
-    tex_t tex;
-    obj_t obj;
-} rasterstate_t;
+    mat4       model;
+    mat4       MVP;
+    vec3       cam_pos;
+    tex_t      tex;
+    struct obj obj;
+};
 
-static rasterstate_t state = {0};
+static struct rasterstate raster_state = {0};
 
 #endif // __COMMON_H__
