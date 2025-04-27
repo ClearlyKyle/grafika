@@ -127,7 +127,7 @@ static inline int debug_timed_block_begin(const int counter, char *file_name, in
     const uint32_t event_index           = (const uint32_t)(table_and_event_index & 0xFFFFFFFF);
 
     ASSERT(table_index < DEBUG_FRAME_COLLECTION_COUNT, "table_index error");
-    ASSERT(event_index < DEBUG_MAX_EVENTS, "event_index error");
+    ASSERT(event_index < DEBUG_MAX_EVENTS, "event_index error %s\n", function_name);
 
     struct debug_event *event = global_debug_state->table[table_index].events + event_index;
     event->record_index       = (uint32_t)counter; // NOTE : casting
@@ -157,21 +157,28 @@ static inline int debug_timed_block_end(const int counter, const uint64_t curren
 #define TOKEN_PASTE(x, y)  x##y
 #define TOKEN_PASTE2(x, y) TOKEN_PASTE(x, y)
 
-#define TIMED_BLOCK_NAMED(name)                                                                                \
-    for (int TOKEN_PASTE2(counter, __LINE__) = debug_timed_block_begin(__COUNTER__, __FILE__, __LINE__, name); \
-         TOKEN_PASTE2(counter, __LINE__);                                                                      \
-         TOKEN_PASTE2(counter, __LINE__) = debug_timed_block_end(TOKEN_PASTE2(counter, __LINE__), __rdtsc()))
+#ifdef BENCH
+    #define TIMED_BLOCK_NAMED(name)                                                                                \
+        for (int TOKEN_PASTE2(counter, __LINE__) = debug_timed_block_begin(__COUNTER__, __FILE__, __LINE__, name); \
+             TOKEN_PASTE2(counter, __LINE__);                                                                      \
+             TOKEN_PASTE2(counter, __LINE__) = debug_timed_block_end(TOKEN_PASTE2(counter, __LINE__), __rdtsc()))
 
-#define TIMED_BLOCK_BEGIN(name)                  \
-    const int _tbb_counter_##name = __COUNTER__; \
-    debug_timed_block_begin(_tbb_counter_##name, __FILE__, __LINE__, #name)
+    #define TIMED_BLOCK_BEGIN(name)                  \
+        const int _tbb_counter_##name = __COUNTER__; \
+        debug_timed_block_begin(_tbb_counter_##name, __FILE__, __LINE__, #name)
 
-#define TIMED_BLOCK_END(name) \
-    debug_timed_block_end(_tbb_counter_##name, __rdtsc())
+    #define TIMED_BLOCK_END(name) \
+        debug_timed_block_end(_tbb_counter_##name, __rdtsc())
 
-#define TIMED_FUNCTION(func, ...) \
-    TIMED_BLOCK_BEGIN(func);      \
-    func(__VA_ARGS__);            \
-    TIMED_BLOCK_END(func);
+    #define TIMED_FUNCTION(func, ...) \
+        TIMED_BLOCK_BEGIN(func);      \
+        func(__VA_ARGS__);            \
+        TIMED_BLOCK_END(func);
+#else
+    #define TIMED_BLOCK_NAMED(name)
+    #define TIMED_BLOCK_BEGIN(name)
+    #define TIMED_BLOCK_END(name)
+    #define TIMED_FUNCTION(func, ...)
+#endif
 
 #endif // __BENCH_H__
