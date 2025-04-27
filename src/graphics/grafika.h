@@ -76,6 +76,11 @@ static void grafika_startup(struct arena *arena)
     rend.pixels = rend.surface->pixels;
     ASSERT(rend.pixels, "Error getting surface pixels\n");
 
+    SDL_PixelFormat *pixel_format = rend.surface->format;
+    const char      *format_name  = SDL_GetPixelFormatName(pixel_format->format);
+    LOG("Window pixel format: %s, bpp: %d\n", format_name, pixel_format->BitsPerPixel);
+    LOG("Shift: R: %d, G:%d, B:%d, A:%d\n", pixel_format->Rshift, pixel_format->Gshift, pixel_format->Bshift, pixel_format->Ashift);
+
     rend.depth_buffer = arena_alloc_aligned(arena, sizeof(float) * GRAFIKA_SCREEN_WIDTH * GRAFIKA_SCREEN_HEIGHT, 16);
     ASSERT(rend.depth_buffer, "Error allocating depth buffer\n");
 }
