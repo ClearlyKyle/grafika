@@ -376,37 +376,22 @@ static void draw_triangle(const struct triangle t)
     ASSERT(AABB[0] % 4 == 0, "starting x is not multiple of 4\n");
     ASSERT(AABB[2] % 4 == 0, "ending x is not multiple of 4\n");
 
-    const float dY0 = screenspace[1][1] - screenspace[2][1], dX0 = screenspace[2][0] - screenspace[1][0];
-    const float dY1 = screenspace[2][1] - screenspace[0][1], dX1 = screenspace[0][0] - screenspace[2][0];
-    const float dY2 = screenspace[0][1] - screenspace[1][1], dX2 = screenspace[1][0] - screenspace[0][0];
+    const float dY0 = screenspace[2][1] - screenspace[1][1], dX0 = screenspace[1][0] - screenspace[2][0];
+    const float dY1 = screenspace[0][1] - screenspace[2][1], dX1 = screenspace[2][0] - screenspace[0][0];
+    const float dY2 = screenspace[1][1] - screenspace[0][1], dX2 = screenspace[0][0] - screenspace[1][0];
 
-    const float C0 = (screenspace[2][1] * screenspace[1][0]) - (screenspace[2][0] * screenspace[1][1]);
-    const float C1 = (screenspace[0][1] * screenspace[2][0]) - (screenspace[0][0] * screenspace[2][1]);
-    const float C2 = (screenspace[1][1] * screenspace[0][0]) - (screenspace[1][0] * screenspace[0][1]);
-
-    // float alpha0 = (dY0 * ((float)AABB[0] + 0.5f)) + (dX0 * ((float)AABB[1])) + C0;
-    // float alpha1 = (dY0 * ((float)AABB[0] + 1.5f)) + (dX0 * ((float)AABB[1])) + C0;
-    // float alpha2 = (dY0 * ((float)AABB[0] + 2.5f)) + (dX0 * ((float)AABB[1])) + C0;
-    // float alpha3 = (dY0 * ((float)AABB[0] + 3.5f)) + (dX0 * ((float)AABB[1])) + C0;
-
-    // float betaa0 = (dY1 * ((float)AABB[0] + 0.5f)) + (dX1 * ((float)AABB[1])) + C1;
-    // float betaa1 = (dY1 * ((float)AABB[0] + 1.5f)) + (dX1 * ((float)AABB[1])) + C1;
-    // float betaa2 = (dY1 * ((float)AABB[0] + 2.5f)) + (dX1 * ((float)AABB[1])) + C1;
-    // float betaa3 = (dY1 * ((float)AABB[0] + 3.5f)) + (dX1 * ((float)AABB[1])) + C1;
-
-    // float gamma0 = (dY2 * ((float)AABB[0] + 0.5f)) + (dX2 * ((float)AABB[1])) + C2;
-    // float gamma1 = (dY2 * ((float)AABB[0] + 1.5f)) + (dX2 * ((float)AABB[1])) + C2;
-    // float gamma2 = (dY2 * ((float)AABB[0] + 2.5f)) + (dX2 * ((float)AABB[1])) + C2;
-    // float gamma3 = (dY2 * ((float)AABB[0] + 3.5f)) + (dX2 * ((float)AABB[1])) + C2;
+    const float C0 = (screenspace[2][0] * screenspace[1][1]) - (screenspace[2][1] * screenspace[1][0]);
+    const float C1 = (screenspace[0][0] * screenspace[2][1]) - (screenspace[0][1] * screenspace[2][0]);
+    const float C2 = (screenspace[1][0] * screenspace[0][1]) - (screenspace[1][1] * screenspace[0][0]);
 
     // Step vectors (for 4-pixel stride)
     const __m128 A0 = _mm_set1_ps(dY0);
     const __m128 A1 = _mm_set1_ps(dY1);
     const __m128 A2 = _mm_set1_ps(dY2);
 
-    __m128 A0_start = _mm_mul_ps(A0, _mm_add_ps(_mm_set_ps(0.5f, 1.5f, 2.5f, 3.5f), _mm_set1_ps((float)AABB[0])));
-    __m128 A1_start = _mm_mul_ps(A1, _mm_add_ps(_mm_set_ps(0.5f, 1.5f, 2.5f, 3.5f), _mm_set1_ps((float)AABB[0])));
-    __m128 A2_start = _mm_mul_ps(A2, _mm_add_ps(_mm_set_ps(0.5f, 1.5f, 2.5f, 3.5f), _mm_set1_ps((float)AABB[0])));
+    __m128 A0_start = _mm_mul_ps(A0, _mm_add_ps(_mm_setr_ps(0.5f, 1.5f, 2.5f, 3.5f), _mm_set1_ps((float)AABB[0] + 0.5f)));
+    __m128 A1_start = _mm_mul_ps(A1, _mm_add_ps(_mm_setr_ps(0.5f, 1.5f, 2.5f, 3.5f), _mm_set1_ps((float)AABB[0] + 0.5f)));
+    __m128 A2_start = _mm_mul_ps(A2, _mm_add_ps(_mm_setr_ps(0.5f, 1.5f, 2.5f, 3.5f), _mm_set1_ps((float)AABB[0] + 0.5f)));
 
     const __m128 B0 = _mm_set1_ps(dX0);
     const __m128 B1 = _mm_set1_ps(dX1);
@@ -424,9 +409,25 @@ static void draw_triangle(const struct triangle t)
     __m128 B1_inc = B1;
     __m128 B2_inc = B2;
 
-    __m128 A0_inc = _mm_mul_ps(A0, _mm_set1_ps(4.0f)); // a0 * 4
+    __m128 A0_inc = _mm_mul_ps(A0, _mm_set1_ps(4.0f));
     __m128 A1_inc = _mm_mul_ps(A1, _mm_set1_ps(4.0f));
     __m128 A2_inc = _mm_mul_ps(A2, _mm_set1_ps(4.0f));
+
+    const __m128 mm_w_vals0 = _mm_set1_ps(w_vals[0]);
+    const __m128 mm_w_vals1 = _mm_set1_ps(w_vals[1]);
+    const __m128 mm_w_vals2 = _mm_set1_ps(w_vals[2]);
+
+    // pre fetch tex data
+    const int      texw    = raster_state.tex.w;
+    const int      texh    = raster_state.tex.h;
+    const int      texbpp  = raster_state.tex.bpp;
+    unsigned char *texdata = raster_state.tex.data;
+
+    const float inv_area = 1.0f / (dX1 * dY2 - dY1 * dX2);
+    screenspace[1][2]    = (screenspace[1][2] - screenspace[0][2]) * inv_area;
+    screenspace[2][2]    = (screenspace[2][2] - screenspace[0][2]) * inv_area;
+
+    const float depth_step = dY1 * screenspace[1][2] + dY2 * screenspace[2][2];
 
     // rasterize
     for (int y  = AABB[1]; y <= AABB[3]; ++y,
@@ -438,53 +439,123 @@ static void draw_triangle(const struct triangle t)
         __m128 betaa = E1;
         __m128 gamma = E2;
 
+        float z0 = (screenspace[0][2] + screenspace[1][2] * betaa[0] + screenspace[2][2] * gamma[0]);
+        float z1 = (screenspace[0][2] + screenspace[1][2] * betaa[1] + screenspace[2][2] * gamma[1]);
+        float z2 = (screenspace[0][2] + screenspace[1][2] * betaa[2] + screenspace[2][2] * gamma[2]);
+        float z3 = (screenspace[0][2] + screenspace[1][2] * betaa[3] + screenspace[2][2] * gamma[3]);
+
         for (int x     = AABB[0]; x <= AABB[2]; x += 4,
                  alpha = _mm_add_ps(alpha, A0_inc),
                  betaa = _mm_add_ps(betaa, A1_inc),
-                 gamma = _mm_add_ps(gamma, A2_inc))
+                 gamma = _mm_add_ps(gamma, A2_inc),
+                 z0 += 4 * depth_step,
+                 z1 += 4 * depth_step,
+                 z2 += 4 * depth_step,
+                 z3 += 4 * depth_step)
         {
-            __m128 Edge0FuncMask = _mm_cmplt_ps(alpha, _mm_setzero_ps());
-            __m128 Edge1FuncMask = _mm_cmplt_ps(betaa, _mm_setzero_ps());
-            __m128 Edge2FuncMask = _mm_cmplt_ps(gamma, _mm_setzero_ps());
+            __m128 Edge0FuncMask = _mm_cmpgt_ps(alpha, _mm_setzero_ps());
+            __m128 Edge1FuncMask = _mm_cmpgt_ps(betaa, _mm_setzero_ps());
+            __m128 Edge2FuncMask = _mm_cmpgt_ps(gamma, _mm_setzero_ps());
 
-            // Combine resulting masks of all three edges
             __m128 EdgeFuncTestResult = _mm_and_ps(Edge0FuncMask, _mm_and_ps(Edge1FuncMask, Edge2FuncMask));
 
-            uint16_t maskInt = (uint16_t)_mm_movemask_ps(EdgeFuncTestResult);
+            if (_mm_movemask_ps(EdgeFuncTestResult) == 0) continue;
 
-            //// Test Pixel inside triangle
-            // const __m128 sseEdge0Positive = _mm_cmpgt_ps(alpha, _mm_setzero_ps());
-            // const __m128 sseEdge0Negative = _mm_cmplt_ps(alpha, _mm_setzero_ps());
-            // const __m128 sseEdge0FuncMask = _mm_or_ps(sseEdge0Positive,
-            //                                           _mm_andnot_ps(sseEdge0Negative, Edge0TieBreak));
+            __m128 wait0 = _mm_mul_ps(alpha, mm_w_vals0); // Bary A
+            __m128 wait1 = _mm_mul_ps(betaa, mm_w_vals1); // B
+            __m128 wait2 = _mm_mul_ps(gamma, mm_w_vals2); // C
 
-            //// Edge 1 test
-            // const __m128 sseEdge1Positive = _mm_cmpgt_ps(betaa, _mm_setzero_ps());
-            // const __m128 sseEdge1Negative = _mm_cmplt_ps(betaa, _mm_setzero_ps());
-            // const __m128 sseEdge1FuncMask = _mm_or_ps(sseEdge1Positive,
-            //                                           _mm_andnot_ps(sseEdge1Negative, Edge1TieBreak));
+            // wait0 = _mm_mul_ps(wait0, mm_w_vals0);
+            // wait1 = _mm_mul_ps(wait1, mm_w_vals1);
+            // wait2 = _mm_mul_ps(wait2, mm_w_vals2);
 
-            //// Edge 2 test
-            // const __m128 sseEdge2Positive = _mm_cmpgt_ps(gamma, _mm_setzero_ps());
-            // const __m128 sseEdge2Negative = _mm_cmplt_ps(gamma, _mm_setzero_ps());
-            // const __m128 sseEdge2FuncMask = _mm_or_ps(sseEdge2Positive,
-            //                                           _mm_andnot_ps(sseEdge2Negative, Edge2TieBreak));
+            const __m128 cf = _mm_rcp_ps(_mm_add_ps(_mm_add_ps(wait0, wait1), wait2));
 
-            //// Combine resulting masks of all three edges
-            // const __m128 mask = _mm_and_ps(sseEdge0FuncMask, _mm_and_ps(sseEdge1FuncMask, sseEdge2FuncMask));
+            wait0 = _mm_mul_ps(wait0, cf);
+            wait1 = _mm_mul_ps(wait1, cf);
+            wait2 = _mm_mul_ps(wait2, cf);
 
-            // const uint16_t maskInt = (uint16_t)_mm_movemask_ps(mask);
+            const size_t pixel_index = (const size_t)(y * GRAFIKA_SCREEN_WIDTH + x);
 
-            if (maskInt == 0x0) continue;
+            // const float z0 = (clipspace[0][3] * wait0[0] + clipspace[1][3] * wait1[0] + clipspace[2][3] * wait2[0]);
+            // const float z1 = (clipspace[0][3] * wait0[1] + clipspace[1][3] * wait1[1] + clipspace[2][3] * wait2[1]);
+            // const float z2 = (clipspace[0][3] * wait0[2] + clipspace[1][3] * wait1[2] + clipspace[2][3] * wait2[2]);
+            // const float z3 = (clipspace[0][3] * wait0[3] + clipspace[1][3] * wait1[3] + clipspace[2][3] * wait2[3]);
 
-            if (maskInt & 0x0001)
-                grafika_setpixel(x + 3, y, 0xFF112233);
-            if (maskInt & 0x0002)
-                grafika_setpixel(x + 2, y, 0xFF112233);
-            if (maskInt & 0x0004)
-                grafika_setpixel(x + 1, y, 0xFF112233);
-            if (maskInt & 0x0008)
-                grafika_setpixel(x + 0, y, 0xFF112233);
+            const __m128 interpolated_z = _mm_setr_ps(z0, z1, z2, z3);
+
+            float       *pDepth          = &rend.depth_buffer[pixel_index];
+            const __m128 sseDepthCurrent = _mm_load_ps(pDepth);
+            // Perform LESS_THAN_EQUAL depth test
+            const __m128 sseDepthRes = _mm_cmple_ps(interpolated_z, sseDepthCurrent);
+
+            if (_mm_movemask_ps(sseDepthRes) == 0) continue;
+
+            const __m128 sseWriteMask = _mm_and_ps(sseDepthRes, EdgeFuncTestResult);
+
+            // Write interpolated Z values
+            _mm_maskmoveu_si128(
+                _mm_castps_si128(interpolated_z),
+                _mm_castps_si128(sseWriteMask),
+                (char *)pDepth);
+
+            float u0 = (t.tex[0][0] * wait0[0] + t.tex[1][0] * wait1[0] + t.tex[2][0] * wait2[0]);
+            float u1 = (t.tex[0][0] * wait0[1] + t.tex[1][0] * wait1[1] + t.tex[2][0] * wait2[1]);
+            float u2 = (t.tex[0][0] * wait0[2] + t.tex[1][0] * wait1[2] + t.tex[2][0] * wait2[2]);
+            float u3 = (t.tex[0][0] * wait0[3] + t.tex[1][0] * wait1[3] + t.tex[2][0] * wait2[3]);
+
+            float v0 = (t.tex[0][1] * wait0[0] + t.tex[1][1] * wait1[0] + t.tex[2][1] * wait2[0]);
+            float v1 = (t.tex[0][1] * wait0[1] + t.tex[1][1] * wait1[1] + t.tex[2][1] * wait2[1]);
+            float v2 = (t.tex[0][1] * wait0[2] + t.tex[1][1] * wait1[2] + t.tex[2][1] * wait2[2]);
+            float v3 = (t.tex[0][1] * wait0[3] + t.tex[1][1] * wait1[3] + t.tex[2][1] * wait2[3]);
+
+            u0 = SDL_clamp(u0, 0.0f, 1.0f);
+            u1 = SDL_clamp(u1, 0.0f, 1.0f);
+            u2 = SDL_clamp(u2, 0.0f, 1.0f);
+            u3 = SDL_clamp(u3, 0.0f, 1.0f);
+
+            v0 = SDL_clamp(v0, 0.0f, 1.0f);
+            v1 = SDL_clamp(v1, 0.0f, 1.0f);
+            v2 = SDL_clamp(v2, 0.0f, 1.0f);
+            v3 = SDL_clamp(v3, 0.0f, 1.0f);
+
+            u0 *= (float)texw - 1;
+            u1 *= (float)texw - 1;
+            u2 *= (float)texw - 1;
+            u3 *= (float)texw - 1;
+
+            v0 *= (float)texh - 1;
+            v1 *= (float)texh - 1;
+            v2 *= (float)texh - 1;
+            v3 *= (float)texh - 1;
+
+            unsigned char *texcolour0 = texdata + (((int)u0 + texw * (int)v0) * texbpp);
+            unsigned char *texcolour1 = texdata + (((int)u1 + texw * (int)v1) * texbpp);
+            unsigned char *texcolour2 = texdata + (((int)u2 + texw * (int)v2) * texbpp);
+            unsigned char *texcolour3 = texdata + (((int)u3 + texw * (int)v3) * texbpp);
+
+            __m128i final_colour = _mm_setr_epi8(texcolour0[2], texcolour0[1], texcolour0[0], -1,
+                                                 texcolour1[2], texcolour1[1], texcolour1[0], -1,
+                                                 texcolour2[2], texcolour2[1], texcolour2[0], -1,
+                                                 texcolour3[2], texcolour3[1], texcolour3[0], -1);
+
+            uint32_t *pixel_location = &rend.pixels[pixel_index];
+
+#if 1 /* Fabian method */
+            const __m128i original_pixel_data = _mm_load_si128((__m128i *)pixel_location);
+
+            const __m128i write_mask    = _mm_castps_si128(sseWriteMask);
+            const __m128i masked_output = _mm_or_si128(_mm_and_si128(write_mask, final_colour),
+                                                       _mm_andnot_si128(write_mask, original_pixel_data));
+
+            _mm_store_si128((__m128i *)pixel_location, masked_output);
+#else
+            // Mask-store 4-sample fragment values
+            _mm_maskstore_epi32(
+                (int *)pixel_location,
+                _mm_castps_si128(EdgeFuncTestResult),
+                final_colour);
+#endif
         }
     }
 }
