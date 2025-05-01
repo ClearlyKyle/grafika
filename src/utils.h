@@ -66,6 +66,24 @@ struct arena
 
 #define MEGABYTE(n) ((n) * (1024 * 1024))
 
+static inline struct arena arena_create(size_t size)
+{
+    struct arena arena = {0};
+
+    arena.capacity = size;
+    arena.used     = 0;
+    arena.base     = malloc(arena.capacity);
+    ASSERT(arena.base, "Unable to allocate %ubytes for arena\n", size);
+
+    return arena;
+}
+
+static inline void arena_destroy(struct arena *arena)
+{
+    ASSERT(arena, "Invalid arena to free\n");
+    if (arena->base) free(arena->base);
+}
+
 static void *arena_alloc_aligned(struct arena *arena, size_t size, size_t alignment)
 {
     ASSERT(arena != NULL, "arena is null\n");
