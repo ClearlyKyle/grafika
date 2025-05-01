@@ -220,8 +220,6 @@ void m3_transpose(mat3 m, mat3 dest)
 MATEMATIKA_INLINE
 void m4_mul_m4(mat4 m1, mat4 m2, mat4 dest)
 {
-    TIMED_BLOCK_BEGIN(m4_mul_m4);
-
     assert(m1 != m2);
 
     const float a00 = m1[0][0], a01 = m1[0][1], a02 = m1[0][2], a03 = m1[0][3],
@@ -250,8 +248,6 @@ void m4_mul_m4(mat4 m1, mat4 m2, mat4 dest)
     dest[3][1] = a01 * b30 + a11 * b31 + a21 * b32 + a31 * b33;
     dest[3][2] = a02 * b30 + a12 * b31 + a22 * b32 + a32 * b33;
     dest[3][3] = a03 * b30 + a13 * b31 + a23 * b32 + a33 * b33;
-
-    TIMED_BLOCK_END(m4_mul_m4);
 }
 
 MATEMATIKA_INLINE
