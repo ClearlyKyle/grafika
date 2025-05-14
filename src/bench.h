@@ -10,6 +10,44 @@
     #include <windows.h>
 #endif
 
+//
+// TIMER
+//
+
+struct tymer
+{
+    Uint64 start, elapsed, perf_frequency;
+};
+
+#define TIMER_INIT                                       \
+    (struct tymer)                                       \
+    {                                                    \
+        .perf_frequency = SDL_GetPerformanceFrequency(), \
+        .start = 0, .elapsed = 0,                        \
+    }
+
+#define TIMER_START(TIMER)                                      \
+    {                                                           \
+        (TIMER).perf_frequency = SDL_GetPerformanceFrequency(); \
+        (TIMER).start          = SDL_GetPerformanceCounter();   \
+        (TIMER).elapsed        = 0;                             \
+    }
+
+#define TIMER_UPDATE(TIMER)                                                 \
+    {                                                                       \
+        const Uint64 _new_time_##TIMER = SDL_GetPerformanceCounter();       \
+        (TIMER).elapsed                = _new_time_##TIMER - (TIMER).start; \
+        (TIMER).start                  = _new_time_##TIMER;                 \
+    }
+
+#define TIMER_ELAPSED_S(TIMER) ((double)(TIMER).elapsed / (double)(TIMER).perf_frequency)
+
+#define TIMER_ELAPSED_MS(TIMER) (TIMER_ELAPSED_S(TIMER) * 1000.0)
+
+//
+// PERFORNAMCE BENCHMARKING
+//
+
 struct debug_record
 {
     char    *file_name;

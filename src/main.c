@@ -1,13 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-// TODO : move the debug stuff to another file
-// TODO : run through all files and make sure all modes work
 // TODO : add the job system
-// TODO : make sure its all camel case
 // TODO : the todos in the obj loader
 // TODO : switch the obj loader code to a single header style
-// TODO : move the timer code to the bench marking
 
 // TODO : graphika and shrifty need to be .c files?
 

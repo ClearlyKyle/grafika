@@ -6,7 +6,6 @@
 #include "../utils.h"
 #include "../tex.h"
 #include "../obj.h"
-#include "../timer.h"
 #include "../matematika.h"
 #include "../bench.h"
 
