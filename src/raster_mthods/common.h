@@ -28,8 +28,6 @@ struct rasterstate
     struct obj obj;
 };
 
-// struct rasterstate raster_state = {0};
-
 void draw_object(struct arena *arena);
 void draw_onexit(void);
 

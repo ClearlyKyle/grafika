@@ -1,7 +1,6 @@
-#ifndef __EDGING_H__
-#define __EDGING_H__
-
 #include "common.h"
+
+struct rasterstate raster_state = {0};
 
 static void draw_triangle(const struct triangle t)
 {
@@ -14,15 +13,13 @@ static void draw_triangle(const struct triangle t)
         vec4 pos = {t.pos[i][0], t.pos[i][1], t.pos[i][2], 1.0f};
         m4_mul_v4(raster_state.MVP, pos, clip_space[i]);
 
-        // clipping (is this correct?)
-        const float x = fabsf(clip_space[i][0]);
-        const float y = fabsf(clip_space[i][1]);
-        const float w = fabsf(clip_space[i][3]);
-
-        if ((-w <= x && x <= w) || (-w <= y && y <= w))
-            continue;
-        else
-            return;
+        // clipping
+        if (clip_space[i][0] < -clip_space[i][3] || clip_space[i][0] > clip_space[i][3] ||
+            clip_space[i][1] < -clip_space[i][3] || clip_space[i][1] > clip_space[i][3] ||
+            clip_space[i][2] < -clip_space[i][3] || clip_space[i][2] > clip_space[i][3])
+        {
+            return; // triangle is outside
+        }
     }
 
     // perspective division (clip to ndc)
@@ -77,7 +74,6 @@ static void draw_triangle(const struct triangle t)
             float w2 = v3_edgefunc(screen_space[0], screen_space[1], point);
 
             if (w0 < 0.0f || w1 < 0.0f || w2 < 0.0f)
-                // if ((int)w0 & 0x80000000 || (int)w1 & 0x80000000 || (int)w2 & 0x80000000)
                 continue;
 
             w0 *= inv_area;
@@ -88,14 +84,13 @@ static void draw_triangle(const struct triangle t)
 
             const float depth = w0 * screen_space[0][2] + w1 * screen_space[1][2] + w2 * screen_space[2][2];
 
-            float *oldZ = pDepthBuffer + index;
-            // const float invZ  = 1.0f / depth;
-            const float invZ = depth;
+            float      *oldZ = pDepthBuffer + index;
+            const float newZ = depth;
 
-            if (invZ > *oldZ)
+            if (newZ > *oldZ)
                 continue;
 
-            *oldZ = invZ;
+            *oldZ = newZ;
 
             // Weights, see what i did there ;)
             const float wait0 = w0 * w_vals[0];
@@ -108,8 +103,8 @@ static void draw_triangle(const struct triangle t)
             float u = (t.tex[0][0] * wait0 + t.tex[1][0] * wait1 + t.tex[2][0] * wait2) * cf;
             float v = (t.tex[0][1] * wait0 + t.tex[1][1] * wait1 + t.tex[2][1] * wait2) * cf;
 
-            // u = fabsf(u);
-            // v = fabsf(v);
+            u = SDL_clamp(u, 0.0f, 1.0f);
+            v = SDL_clamp(v, 0.0f, 1.0f);
 
             u *= (float)tex_w - 1;
             v *= (float)tex_h - 1;
@@ -120,17 +115,14 @@ static void draw_triangle(const struct triangle t)
                                    ((uint32_t)tex_colour[1] << 8) |
                                    (uint32_t)tex_colour[2];
 
-            // grafika_setpixel(x, y, 0xFFFFFFFF);
             grafika_setpixel(x, y, pixelcolour);
         }
     }
 }
 
-static void draw_onexit(void) {} /* Do nothing */
-
 static struct triangle *triangles = NULL;
 
-static void draw_object(struct arena *arena)
+void draw_object(struct arena *arena)
 {
     obj_t          obj      = raster_state.obj;
     float         *pPos     = obj.pos;
@@ -141,10 +133,10 @@ static void draw_object(struct arena *arena)
     if (triangles == NULL)
         triangles = arena_alloc_aligned(arena, sizeof(struct triangle) * obj.num_f_rows, 16);
 
-    #pragma omp parallel
+    // #pragma omp parallel
     {
-    #pragma omp for
-        // gather triangles
+        // #pragma omp for
+        //  gather triangles
         for (size_t i = 0; i < obj.num_f_rows; ++i)
         { // CW triangles (which blender uses)
             vertindices_t indices0   = pIndices[i * 3 + 2];
@@ -181,8 +173,7 @@ static void draw_object(struct arena *arena)
             triangles[i].tex[2][1] = pTex[2 * tex_index2 + 1];
         }
 
-    #pragma omp for
-        // drawing triangles
+        // #pragma omp for
         for (size_t i = 0; i < obj.num_f_rows; ++i)
         {
             draw_triangle(triangles[i]);
@@ -219,5 +210,3 @@ static void draw_object(struct arena *arena)
     }
 #endif
 }
-
-#endif // __EDGING_H__
