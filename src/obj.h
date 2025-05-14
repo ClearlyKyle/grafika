@@ -8,50 +8,52 @@
 
 #include "utils.h"
 
-#define MAX_CHAR_LINE_BUFFER 256
+#define MAX_CHAR_LINE_BUFFER (256)
 
-typedef struct material
+struct material
 {
     char *name;
     char *map_Kd;
     char *map_bump;
     char *disp;
-} material_t;
+};
 
-typedef struct vertindices
+struct vertindices
 {
     int v_idx, vn_idx, vt_idx;
-} vertindices_t;
+};
 
-typedef struct shape
-{
-    int mat_idx, idx_offset, idx_end; // idx_offset is the offset into the 'indices' array
-} shape_t;
-
-typedef struct BoundingBox
+struct bounding_box
 {
     float min[3], max[3]; // x, y, z
-} BoundingBox_t;
+};
 
-typedef struct obj
+struct obj
 {
-    size_t num_pos; // X, Y, Z of vertex
+    size_t num_pos; // x, y, z of vertex
     size_t num_norms;
     size_t num_texs;
-    size_t num_f_rows; // How many rows starting with f
-    size_t num_verts;  // How many individual vertices
+    size_t num_f_rows; // how many rows starting with f
+    size_t num_verts;  // how many individual vertices
 
-    BoundingBox_t bbox;
+    struct bounding_box bbox;
 
-    size_t      num_of_mats;
-    material_t *mats;
+    size_t           num_of_mats;
+    struct material *mats;
 
     float *pos;
     float *norms;
     float *texs;
 
-    vertindices_t *indices; // Index values for 1 vertex
-} obj_t;
+    struct vertindices *indices; // index values for 1 vertex
+};
+
+struct obj obj_load(const char *filename);
+void       obj_destroy(struct obj *obj);
+
+#endif // __OBJ_H__
+
+#ifdef OBJ_IMPLEMENTATION
 
 /*
 dest    - needs to be big enough to store src + null
@@ -59,58 +61,56 @@ destsz  - strlen(src) + 1;
 src     - source string to copy
 srcsz   - how much of the src string to copy, no including the nul
 */
-static void _str_copy(char *dest, const size_t destsz, const char *src, const size_t srcsz)
+static void _str_copy(char *dest, const size_t dest_size, const char *src, const size_t src_size)
 {
-    if (destsz >= (srcsz + 1))
+    if (dest_size >= (src_size + 1))
     {
-        memmove(dest, src, srcsz);
-        dest[srcsz] = '\0';
+        memmove(dest, src, src_size);
+        dest[src_size] = '\0';
     }
     else
     {
-        fprintf(stderr, "destination for string |%s| is too small\n", src);
-        memmove(dest, src, destsz);
-        dest[destsz - 1] = '\0';
+        memmove(dest, src, dest_size);
+        dest[dest_size - 1] = '\0';
     }
 }
 
-static char *_read_string_until(char *inputString, const char stopChar)
+static char *_read_string_until(char *input_string, const char end_char)
 {
-    // TODO : this should take in some kind of length
-    ASSERT(inputString, "string should not be NULL");
+    ASSERT(input_string, "string should not be NULL");
 
-    while (*inputString != '\0' && *inputString != stopChar)
-        inputString++;
+    while (*input_string != '\0' && *input_string != end_char)
+        input_string++;
 
-    return inputString;
+    return input_string;
 }
 
 static void _remove_new_line(char *str)
 {
     ASSERT(str, "string should not be NULL");
 
-    const size_t length = strcspn(str, "\n"); // TODO : remove this function call
+    char *p = _read_string_until(str, '\0');
 
-    // TODO : refactor this
-    if (str[length] == '\n' || str[length] == '\r')
-        str[length] = '\0'; // Replace newline with null-termination
-
-    if (str[length - 1] == '\n' || str[length - 1] == '\r')
-        str[length - 1] = '\0'; // Replace newline with null-termination
+    // walk backwards and strip any trailing '\n' or '\r'
+    while (p > str && (p[-1] == '\n' || p[-1] == '\r'))
+    {
+        p[-1] = '\0';
+        p--;
+    }
 }
 
-static void _material_file(char *line, material_t **mat_data, size_t *num_of_mats)
+static void _material_file(char *line, struct material **mat_data, size_t *num_of_mats)
 {
     char *material_file_path = _read_string_until(line, ' ');
 
-    _remove_new_line(++material_file_path); // NOTE : this might be unsafe
+    _remove_new_line(++material_file_path);
 
     FILE *material_fp = NULL;
     material_fp       = fopen(material_file_path, "r");
     ASSERT(material_fp, "Error opening matrial file: %s\n", material_file_path);
 
-    material_t *curr_mat    = NULL;
-    size_t      mat_counter = 0;
+    struct material *curr_mat    = NULL;
+    size_t           mat_counter = 0;
 
     char linebuffer[256]; // Adjust the size
     while (fgets(linebuffer, sizeof(linebuffer), material_fp) != NULL)
@@ -121,14 +121,14 @@ static void _material_file(char *line, material_t **mat_data, size_t *num_of_mat
             // Create new material struct
             mat_counter++;
             LOG("Creating new mat\n");
-            *mat_data = realloc(*mat_data, sizeof(material_t) * mat_counter);
+            *mat_data = realloc(*mat_data, sizeof(struct material) * mat_counter);
 
             curr_mat = mat_data[mat_counter - 1];
-            memset(curr_mat, 0, sizeof(material_t));
+            memset(curr_mat, 0, sizeof(struct material));
 
             // Get material name
             char *material_name = _read_string_until(linebuffer, ' ');
-            _remove_new_line(++material_name); // NOTE : this might be unsafe
+            _remove_new_line(++material_name);
 
             const size_t str_len  = strlen(material_name); // not including the null terminating character
             const size_t dst_size = str_len + 1;
@@ -140,7 +140,7 @@ static void _material_file(char *line, material_t **mat_data, size_t *num_of_mat
         if (strncmp(linebuffer, "map_Kd", 6) == 0) // Diffuse Map
         {
             char *diffuse_path = _read_string_until(linebuffer, ' ');
-            _remove_new_line(++diffuse_path); // NOTE : this might be unsafe
+            _remove_new_line(++diffuse_path);
 
             const size_t str_len  = strlen(diffuse_path);
             const size_t dst_size = str_len + 1;
@@ -149,12 +149,12 @@ static void _material_file(char *line, material_t **mat_data, size_t *num_of_mat
             _str_copy(curr_mat->map_Kd, dst_size, diffuse_path, str_len);
             // curr_mat->map_Kd[str_len - 1] = '\0';
 
-            LOG("curr_mat->map_Kd = |%s|\n", curr_mat->map_Kd);
+            // LOG("curr_mat->map_Kd = |%s|\n", curr_mat->map_Kd);
         }
         if (strncmp(linebuffer, "map_bump", 8) == 0 || strncmp(linebuffer, "map_Bump", 8) == 0) // Bump Map
         {
             char *bump_path = _read_string_until(linebuffer, ' ');
-            _remove_new_line(++bump_path); // NOTE : this might be unsafe
+            _remove_new_line(++bump_path);
 
             const size_t str_len  = strlen(bump_path);
             const size_t dst_size = str_len + 1;
@@ -164,12 +164,12 @@ static void _material_file(char *line, material_t **mat_data, size_t *num_of_mat
             _str_copy(curr_mat->map_bump, dst_size, bump_path, str_len);
             // curr_mat->map_bump[str_len - 1] = '\0';
 
-            LOG("curr_mat->map_bump = |%s|\n", curr_mat->map_bump);
+            // LOG("curr_mat->map_bump = |%s|\n", curr_mat->map_bump);
         }
         if (strncmp(linebuffer, "disp", 4) == 0) // Displacement Map
         {
             char *disp_path = _read_string_until(linebuffer, ' ');
-            _remove_new_line(++disp_path); // NOTE : this might be unsafe
+            _remove_new_line(++disp_path);
 
             const size_t str_len  = strlen(disp_path);
             const size_t dst_size = str_len + 1;
@@ -178,7 +178,7 @@ static void _material_file(char *line, material_t **mat_data, size_t *num_of_mat
             _str_copy(curr_mat->disp, dst_size, disp_path, str_len);
             // curr_mat->disp[str_len - 1] = '\0';
 
-            LOG("curr_mat->disp = |%s|\n", curr_mat->disp);
+            // LOG("curr_mat->disp = |%s|\n", curr_mat->disp);
         }
     }
 
@@ -186,7 +186,7 @@ static void _material_file(char *line, material_t **mat_data, size_t *num_of_mat
     fclose(material_fp);
 }
 
-static void parse_f_line(char *fline, const int num_vertex_values, vertindices_t *index_data)
+static void parse_f_line(char *fline, const int num_vertex_values, struct vertindices *index_data)
 {
     (void)num_vertex_values;
 
@@ -241,7 +241,7 @@ static void parse_f_line(char *fline, const int num_vertex_values, vertindices_t
     // LOG("%s", fline);
 }
 
-obj_t obj_load(const char *filename)
+struct obj obj_load(const char *filename)
 {
     FILE *fp = NULL;
     fp       = fopen(filename, "r");
@@ -283,7 +283,7 @@ obj_t obj_load(const char *filename)
         }
     }
 
-    obj_t obj      = {0};
+    struct obj obj = {0};
     obj.num_norms  = normalCount;
     obj.num_texs   = texCount;
     obj.num_pos    = posCount;
@@ -294,13 +294,13 @@ obj_t obj_load(const char *filename)
     obj.norms = malloc(sizeof(float) * normalCount * 3);
     obj.texs  = malloc(sizeof(float) * texCount * 2);
 
-    obj.indices = malloc(sizeof(vertindices_t) * vertCount);
+    obj.indices = malloc(sizeof(struct vertindices) * vertCount);
 
     // Reset file pointer to the start of the file
     fseek(fp, 0, SEEK_SET);
 
     // bounding box
-    BoundingBox_t bbox;
+    struct bounding_box bbox;
     bbox.min[0] = bbox.min[1] = bbox.min[2] = 1e9;  // Initialize with large values
     bbox.max[0] = bbox.max[1] = bbox.max[2] = -1e9; // Initialize with small values
 
@@ -359,10 +359,10 @@ obj_t obj_load(const char *filename)
             {
                 ASSERT(space_counter == 4, "space_counter = %d", space_counter);
 
-                vertindices_t face_data[4] = {0};
+                struct vertindices face_data[4] = {0};
                 parse_f_line(linebuffer, space_counter, face_data);
 
-                vertindices_t *fptr = &obj.indices[indi_idx];
+                struct vertindices *fptr = &obj.indices[indi_idx];
 
                 fptr[0] = face_data[0];
                 fptr[1] = face_data[1];
@@ -378,10 +378,10 @@ obj_t obj_load(const char *filename)
             {
                 ASSERT(space_counter == 3, "space_counter = %d", space_counter);
 
-                vertindices_t face_data[3] = {0};
+                struct vertindices face_data[3] = {0};
                 parse_f_line(linebuffer, space_counter, face_data);
 
-                vertindices_t *fptr = &obj.indices[indi_idx];
+                struct vertindices *fptr = &obj.indices[indi_idx];
 
                 fptr[0] = face_data[0];
                 fptr[1] = face_data[1];
@@ -399,6 +399,7 @@ obj_t obj_load(const char *filename)
 
     obj.bbox = bbox;
 
+#if 0
     LOG("poss : %zu\n", posCount);
     LOG("norms: %zu\n", normalCount);
     LOG("texs : %zu\n", texCount);
@@ -412,6 +413,7 @@ obj_t obj_load(const char *filename)
         LOG("%s - normal  %s\n", obj.mats[i].name, obj.mats[i].map_bump);
         LOG("%s - disp    %s\n", obj.mats[i].name, obj.mats[i].disp);
     }
+#endif
 
     fclose(fp);
     return obj;
@@ -442,4 +444,4 @@ void obj_destroy(struct obj *obj)
     LOG("obj destroyed!\n");
 }
 
-#endif // __OBJ_H__
+#endif // OBJ_IMPLEMENTATION

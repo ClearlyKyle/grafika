@@ -5,7 +5,10 @@
 #include "../shrifty.h"
 #include "../utils.h"
 #include "../tex.h"
+
+#define OBJ_IMPLEMENTATION
 #include "../obj.h"
+
 #include "../matematika.h"
 #include "../bench.h"
 

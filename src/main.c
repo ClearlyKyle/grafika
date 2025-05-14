@@ -2,9 +2,6 @@
 #include <stdlib.h>
 
 // TODO : add the job system
-// TODO : the todos in the obj loader
-// TODO : switch the obj loader code to a single header style
-
 // TODO : graphika and shrifty need to be .c files?
 
 #define BENCH
@@ -17,9 +14,6 @@
 // #include "raster_mthods/phong.c"
 // #include "raster_mthods/normal_map.c"
 #include "raster_mthods/parallax.c"
-
-static void debug_frame_end(void);
-static void debug_render_info(void);
 
 int main(int argc, char *argv[])
 {
@@ -51,10 +45,10 @@ int main(int argc, char *argv[])
     m4_proj(DEG2RAD(60.0f), (float)GRAFIKA_SCREEN_WIDTH / (float)GRAFIKA_SCREEN_HEIGHT, 0.1f, 100.0f, proj);
 
     // calculate model height
-    BoundingBox_t bbox    = raster_state.obj.bbox;
-    float         centerx = -(bbox.min[0] + bbox.max[0]) * 0.5f;
-    float         centery = -(bbox.min[1] + bbox.max[1]) * 0.5f;
-    float         centerz = -(bbox.min[2] + bbox.max[2]) * 0.5f;
+    struct bounding_box bbox    = raster_state.obj.bbox;
+    float               centerx = -(bbox.min[0] + bbox.max[0]) * 0.5f;
+    float               centery = -(bbox.min[1] + bbox.max[1]) * 0.5f;
+    float               centerz = -(bbox.min[2] + bbox.max[2]) * 0.5f;
 
     mat4 trans; // translation matrix
     m4_make_trans(centerx, centery, centerz, trans);
