@@ -48,7 +48,7 @@ struct obj
     struct vertindices *indices; // index values for 1 vertex
 };
 
-struct obj obj_load(const char *filename);
+struct obj obj_load(const char *filename, struct arena *arena);
 void       obj_destroy(struct obj *obj);
 
 #endif // __OBJ_H__
@@ -99,7 +99,7 @@ static void _remove_new_line(char *str)
     }
 }
 
-static void _material_file(char *line, struct material **mat_data, size_t *num_of_mats)
+static void _material_file(struct arena *arena, char *line, struct material **mat_data, size_t *num_of_mats)
 {
     char *material_file_path = _read_string_until(line, ' ');
 
@@ -132,7 +132,7 @@ static void _material_file(char *line, struct material **mat_data, size_t *num_o
 
             const size_t str_len  = strlen(material_name); // not including the null terminating character
             const size_t dst_size = str_len + 1;
-            curr_mat->name        = malloc(sizeof(char) * dst_size);
+            curr_mat->name        = arena_alloc_aligned(arena, sizeof(char) * dst_size, 16);
 
             _str_copy(curr_mat->name, dst_size, material_name, str_len);
             // curr_mat->name[str_len - 1] = '\0';
@@ -144,7 +144,7 @@ static void _material_file(char *line, struct material **mat_data, size_t *num_o
 
             const size_t str_len  = strlen(diffuse_path);
             const size_t dst_size = str_len + 1;
-            curr_mat->map_Kd      = calloc(dst_size, sizeof(char));
+            curr_mat->map_Kd      = arena_alloc_aligned(arena, dst_size * sizeof(char), 16);
 
             _str_copy(curr_mat->map_Kd, dst_size, diffuse_path, str_len);
             // curr_mat->map_Kd[str_len - 1] = '\0';
@@ -159,7 +159,7 @@ static void _material_file(char *line, struct material **mat_data, size_t *num_o
             const size_t str_len  = strlen(bump_path);
             const size_t dst_size = str_len + 1;
 
-            curr_mat->map_bump = calloc(dst_size, sizeof(char));
+            curr_mat->map_bump = arena_alloc_aligned(arena, dst_size * sizeof(char), 16);
 
             _str_copy(curr_mat->map_bump, dst_size, bump_path, str_len);
             // curr_mat->map_bump[str_len - 1] = '\0';
@@ -173,7 +173,7 @@ static void _material_file(char *line, struct material **mat_data, size_t *num_o
 
             const size_t str_len  = strlen(disp_path);
             const size_t dst_size = str_len + 1;
-            curr_mat->disp        = calloc(dst_size, sizeof(char));
+            curr_mat->disp        = arena_alloc_aligned(arena, dst_size * sizeof(char), 16);
 
             _str_copy(curr_mat->disp, dst_size, disp_path, str_len);
             // curr_mat->disp[str_len - 1] = '\0';
@@ -241,7 +241,7 @@ static void parse_f_line(char *fline, const int num_vertex_values, struct vertin
     // LOG("%s", fline);
 }
 
-struct obj obj_load(const char *filename)
+struct obj obj_load(const char *filename, struct arena *arena)
 {
     FILE *fp = NULL;
     fp       = fopen(filename, "r");
@@ -290,11 +290,11 @@ struct obj obj_load(const char *filename)
     obj.num_f_rows = frowCount;
     obj.num_verts  = vertCount; // Assume triangulation
 
-    obj.pos   = malloc(sizeof(float) * posCount * 3);
-    obj.norms = malloc(sizeof(float) * normalCount * 3);
-    obj.texs  = malloc(sizeof(float) * texCount * 2);
+    obj.pos   = arena_alloc_aligned(arena, sizeof(float) * posCount * 3, 16);
+    obj.norms = arena_alloc_aligned(arena, sizeof(float) * normalCount * 3, 16);
+    obj.texs  = arena_alloc_aligned(arena, sizeof(float) * texCount * 2, 16);
 
-    obj.indices = malloc(sizeof(struct vertindices) * vertCount);
+    obj.indices = arena_alloc_aligned(arena, sizeof(struct vertindices) * vertCount, 16);
 
     // Reset file pointer to the start of the file
     fseek(fp, 0, SEEK_SET);
@@ -392,8 +392,7 @@ struct obj obj_load(const char *filename)
         }
         if (linebuffer[0] == 'm' && linebuffer[1] == 't') // mtllib
         {
-            // Parse material file
-            _material_file(linebuffer, &obj.mats, &obj.num_of_mats);
+            _material_file(arena, linebuffer, &obj.mats, &obj.num_of_mats);
         }
     }
 
@@ -423,23 +422,25 @@ void obj_destroy(struct obj *obj)
 {
     if (!obj) return;
 
-    if (obj->pos) free(obj->pos);
-    if (obj->norms) free(obj->norms);
-    if (obj->texs) free(obj->texs);
-    if (obj->indices) free(obj->indices);
+    // if (obj->pos) free(obj->pos);
+    // if (obj->norms) free(obj->norms);
+    // if (obj->texs) free(obj->texs);
+    // if (obj->indices) free(obj->indices);
 
-    if (obj->mats)
-    {
-        for (size_t i = 0; i < obj->num_of_mats; i++)
-        {
-            if (obj->mats[i].name) free(obj->mats[i].name);
-            if (obj->mats[i].map_Kd) free(obj->mats[i].map_Kd);
-            if (obj->mats[i].map_bump) free(obj->mats[i].map_bump);
-            if (obj->mats[i].disp) free(obj->mats[i].disp);
-        }
+    // if (obj->mats)
+    //{
+    //     for (size_t i = 0; i < obj->num_of_mats; i++)
+    //     {
+    //         if (obj->mats[i].name) free(obj->mats[i].name);
+    //         if (obj->mats[i].map_Kd) free(obj->mats[i].map_Kd);
+    //         if (obj->mats[i].map_bump) free(obj->mats[i].map_bump);
+    //         if (obj->mats[i].disp) free(obj->mats[i].disp);
+    //     }
 
-        free(obj->mats);
-    }
+    //    free(obj->mats);
+    //}
+
+    *obj = (struct obj){0};
 
     LOG("obj destroyed!\n");
 }

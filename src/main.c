@@ -35,7 +35,7 @@ int main(int argc, char *argv[])
     // raster_state.obj = obj_load("res/Dog House/Doghouse.obj");
 
     // edging, stepping, matrix, avx, phong, normal, parallax
-    raster_state.obj = obj_load("res/Square/square.obj");
+    raster_state.obj = obj_load("res/Square/square.obj", &arena);
 
     // TODO : move this to the drawing functions?
     ASSERT(raster_state.obj.mats, "Object must have atleast a diffuse texture\n");
