@@ -3,12 +3,15 @@
 
 #include "../grafika.h"
 #include "../shrifty.h"
-#include "../../utils.h"
-#include "../../tex.h"
-#include "../../obj.h"
-#include "../../timer.h"
-#include "../../matematika.h"
-#include "../../bench.h"
+#include "../utils.h"
+#include "../tex.h"
+#include "../obj.h"
+#include "../timer.h"
+#include "../matematika.h"
+#include "../bench.h"
+
+#include <xmmintrin.h>
+#include <immintrin.h>
 
 struct triangle
 {
@@ -25,6 +28,9 @@ struct rasterstate
     struct obj obj;
 };
 
-static struct rasterstate raster_state = {0};
+// struct rasterstate raster_state = {0};
+
+void draw_object(struct arena *arena);
+void draw_onexit(void);
 
 #endif // __COMMON_H__
