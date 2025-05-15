@@ -173,10 +173,10 @@ void draw_object(struct arena *arena)
 
 #pragma omp parallel
     {
-        obj_t          obj         = raster_state.obj;
+        struct obj          obj         = raster_state.obj;
         float         *obj_pos     = obj.pos;
         float         *obj_tex     = obj.texs;
-        vertindices_t *obj_indices = obj.indices;
+        struct vertindices *obj_indices = obj.indices;
 
 #pragma omp for
         for (size_t i = 0; i < obj.num_f_rows; ++i)
@@ -185,7 +185,7 @@ void draw_object(struct arena *arena)
 
             for (size_t j = 0; j < 3; ++j)
             {
-                vertindices_t indices = obj_indices[i * 3 + j];
+                struct vertindices indices = obj_indices[i * 3 + j];
 
                 const int pos_index = indices.v_idx;
                 const int tex_index = indices.vt_idx;

@@ -124,10 +124,10 @@ static struct triangle *triangles = NULL;
 
 void draw_object(struct arena *arena)
 {
-    obj_t          obj      = raster_state.obj;
+    struct obj          obj      = raster_state.obj;
     float         *pPos     = obj.pos;
     float         *pTex     = obj.texs;
-    vertindices_t *pIndices = obj.indices;
+    struct vertindices *pIndices = obj.indices;
 
 #if 1
     if (triangles == NULL)
@@ -139,7 +139,7 @@ void draw_object(struct arena *arena)
         //  gather triangles
         for (size_t i = 0; i < obj.num_f_rows; ++i)
         { // CW triangles (which blender uses)
-            vertindices_t indices0   = pIndices[i * 3 + 2];
+            struct vertindices indices0   = pIndices[i * 3 + 2];
             const int     pos_index0 = indices0.v_idx;
 
             triangles[i].pos[0][0] = pPos[3 * pos_index0 + 0];
@@ -150,7 +150,7 @@ void draw_object(struct arena *arena)
             triangles[i].tex[0][0] = pTex[2 * tex_index0 + 0];
             triangles[i].tex[0][1] = pTex[2 * tex_index0 + 1];
 
-            vertindices_t indices1   = pIndices[i * 3 + 1];
+            struct vertindices indices1   = pIndices[i * 3 + 1];
             const int     pos_index1 = indices1.v_idx;
 
             triangles[i].pos[1][0] = pPos[3 * pos_index1 + 0];
@@ -161,7 +161,7 @@ void draw_object(struct arena *arena)
             triangles[i].tex[1][0] = pTex[2 * tex_index1 + 0];
             triangles[i].tex[1][1] = pTex[2 * tex_index1 + 1];
 
-            vertindices_t indices2   = pIndices[i * 3 + 0];
+            struct vertindices indices2   = pIndices[i * 3 + 0];
             const int     pos_index2 = indices2.v_idx;
 
             triangles[i].pos[2][0] = pPos[3 * pos_index2 + 0];
@@ -189,7 +189,7 @@ void draw_object(struct arena *arena)
 
             for (size_t j = 0; j < 3; ++j)
             {
-                vertindices_t indices = pIndices[i * 3 + j];
+                struct vertindices indices = pIndices[i * 3 + j];
 
                 const int posIndex = indices.v_idx;
                 const int texIndex = indices.vt_idx;

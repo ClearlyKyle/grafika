@@ -303,7 +303,7 @@ void draw_object(struct arena *arena)
     mat4 cum_matrix = {0};
     m4_mul_m4(VP_MATRIX, raster_state.MVP, cum_matrix);
 
-    const obj_t obj = raster_state.obj;
+    const struct obj obj = raster_state.obj;
 
     if (!transformed_vertices)
         transformed_vertices = arena_alloc_aligned(arena, sizeof(vec4) * obj.num_pos, 16);
@@ -325,7 +325,7 @@ void draw_object(struct arena *arena)
 
         float         *obj_pos     = transformed_vertices;
         float         *obj_tex     = obj.texs;
-        vertindices_t *obj_indices = obj.indices;
+        struct vertindices *obj_indices = obj.indices;
 
 #pragma omp for
         for (size_t i = 0; i < obj.num_f_rows; ++i)
@@ -335,7 +335,7 @@ void draw_object(struct arena *arena)
 
             for (size_t j = 0; j < 3; ++j)
             {
-                vertindices_t indices = obj_indices[i * 3 + j];
+                struct vertindices indices = obj_indices[i * 3 + j];
 
                 const int pos_index = indices.v_idx;
                 const int tex_index = indices.vt_idx;
