@@ -107,6 +107,9 @@ extern struct debug_state *global_debug_state;
 int debug_timed_block_begin(const int counter, char *file_name, int line_number, char *function_name);
 int debug_timed_block_end(const int counter, const uint64_t current_cycles);
 
+void debug_frame_end(void);
+void debug_render_info(void);
+
 #define TOKEN_PASTE(x, y)  x##y
 #define TOKEN_PASTE2(x, y) TOKEN_PASTE(x, y)
 
@@ -230,42 +233,6 @@ int debug_timed_block_end(const int counter, const uint64_t current_cycles)
     return 0;
 }
 
-static void _collate_debug_records();
-
-static void debug_frame_end(void)
-{
-    // swap what the current active table we are using
-    // const uint64_t event_array_index = global_debug_state->array_and_event_index >> 32;
-    // uint64_t       next_array_index  = event_array_index + 1;
-
-    ++global_debug_state->current_table_index;
-    if (global_debug_state->current_table_index >= DEBUG_FRAME_COLLECTION_COUNT)
-    {
-        global_debug_state->current_table_index = 0;
-    }
-
-    const uint64_t table_and_event_index = Atomic_Exchange_int64(&global_debug_state->table_and_event_index,
-                                                                 (uint64_t)global_debug_state->current_table_index << 32);
-
-    const uint32_t table_index = (const uint32_t)(table_and_event_index >> 32);
-    const uint32_t event_index = (const uint32_t)(table_and_event_index & 0xFFFFFFFF); // effectivly one past the last event written, a "event_count"
-
-    // LOG("Total events : %u\n", event_index);
-    // LOG("Table index  : %u\n", table_index);
-
-    global_debug_state->table[table_index].event_count = event_index; // storing the current count of events
-
-    _collate_debug_records(table_index);
-
-    // for (uint32_t record_index = 0; record_index < DEBUG_MAX_RECORDS; record_index++)
-    //{
-    //     struct debug_record *record = global_debug_state->records + record_index;
-
-    //    record->hit_count = 0;
-    //    // Atomic_Exchange_uint32(&record->hit_count, (uint64_t)0);
-    //}
-}
-
 static void _collate_debug_records(const uint32_t frame_index)
 {
     // for each TIMED.. block, we are resetting the hit and cycle count
@@ -311,6 +278,40 @@ static void _collate_debug_records(const uint32_t frame_index)
     }
 }
 
+void debug_frame_end(void)
+{
+    // swap what the current active table we are using
+    // const uint64_t event_array_index = global_debug_state->array_and_event_index >> 32;
+    // uint64_t       next_array_index  = event_array_index + 1;
+
+    ++global_debug_state->current_table_index;
+    if (global_debug_state->current_table_index >= DEBUG_FRAME_COLLECTION_COUNT)
+    {
+        global_debug_state->current_table_index = 0;
+    }
+
+    const uint64_t table_and_event_index = Atomic_Exchange_int64(&global_debug_state->table_and_event_index,
+                                                                 (uint64_t)global_debug_state->current_table_index << 32);
+
+    const uint32_t table_index = (const uint32_t)(table_and_event_index >> 32);
+    const uint32_t event_index = (const uint32_t)(table_and_event_index & 0xFFFFFFFF); // effectivly one past the last event written, a "event_count"
+
+    // LOG("Total events : %u\n", event_index);
+    // LOG("Table index  : %u\n", table_index);
+
+    global_debug_state->table[table_index].event_count = event_index; // storing the current count of events
+
+    _collate_debug_records(table_index);
+
+    // for (uint32_t record_index = 0; record_index < DEBUG_MAX_RECORDS; record_index++)
+    //{
+    //     struct debug_record *record = global_debug_state->records + record_index;
+
+    //    record->hit_count = 0;
+    //    // Atomic_Exchange_uint32(&record->hit_count, (uint64_t)0);
+    //}
+}
+
 struct debug_statistic
 {
     double   min, max, avg;
@@ -347,7 +348,7 @@ static inline void end_debug_statistic(struct debug_statistic *stat)
     }
 }
 
-static void debug_render_info(void)
+void debug_render_info(void)
 {
     for (uint32_t record_index = 0; record_index < DEBUG_MAX_RECORDS; record_index++)
     {
