@@ -6,7 +6,6 @@
 
 #include "utils.h"
 
-#define SHRIFTY_GLYPH_CACHE_COUNT (128)
 struct glyph
 {
     SDL_Surface *surface;
@@ -17,9 +16,9 @@ struct shrifty
 {
     TTF_Font    *font;
     SDL_Surface *surface;
-
-    // struct glyph glyph_cache[SHRIFTY_GLYPH_CACHE_COUNT];
 };
+
+#define SHRIFTY_GLYPH_CACHE_COUNT (128)
 
 static struct glyph   shrifty_glyph_cache[SHRIFTY_GLYPH_CACHE_COUNT];
 static char           shrifty_text_buffer[128];
@@ -36,17 +35,11 @@ static void text_startup(SDL_Surface *surface, int font_size)
     TTF_SetFontKerning(shrifty_state.font, 0);
 
     shrifty_state.surface = surface;
-
-    {
+#if 0
         int minx, maxx, miny, maxy, advance;
         TTF_GlyphMetrics(shrifty_state.font, 'a', &minx, &maxx, &miny, &maxy, &advance);
         LOG("Metrics : %c - %d, %d, %d, %d, %d\n", 'a', minx, maxx, miny, maxy, advance);
-    }
-    {
-        int minx, maxx, miny, maxy, advance;
-        TTF_GlyphMetrics(shrifty_state.font, 'm', &minx, &maxx, &miny, &maxy, &advance);
-        LOG("Metrics : %c - %d, %d, %d, %d, %d\n", 'm', minx, maxx, miny, maxy, advance);
-    }
+#endif
 }
 
 static void text_write(int x, int y, const char *formatted_text, ...) ATTRIBATE_FORMAT_PRINTF(3, 4);
@@ -64,7 +57,7 @@ static void text_write(int x, int y, const char *formatted_text, ...)
     for (char *c = shrifty_text_buffer; *c; c++)
     {
         ASSERT((*c) > 0, "c is out of bounds for a uint16_t");
-        // ASSERT((*c) < SHRIFTY_GLYPH_CACHE_COUNT, "character cache is too small");
+        ASSERT((*c) < SHRIFTY_GLYPH_CACHE_COUNT, "character cache is too small");
 
         Uint16 character = (Uint16)(*c);
 
@@ -104,14 +97,14 @@ void text_shutdown(void)
     if (shrifty_state.font) TTF_CloseFont(shrifty_state.font);
     if (TTF_WasInit()) TTF_Quit();
 
-    // for (size_t i = 0; i < SHRIFTY_GLYPH_CACHE_COUNT; i++)
-    //{
-    //     if (shrifty_state.glyph_cache[i].surface)
-    //     {
-    //         SDL_FreeSurface(shrifty_state.glyph_cache[i].surface);
-    //         shrifty_state.glyph_cache[i].surface = NULL;
-    //     }
-    // }
+    for (size_t i = 0; i < SHRIFTY_GLYPH_CACHE_COUNT; i++)
+    {
+        if (shrifty_glyph_cache[i].surface)
+        {
+            SDL_FreeSurface(shrifty_glyph_cache[i].surface);
+            shrifty_glyph_cache[i].surface = NULL;
+        }
+    }
 
     LOG("text_shutdown\n");
 }
