@@ -41,6 +41,14 @@ void v2_sub(const vec2 v0, const vec2 v1, vec2 res)
 }
 
 MATEMATIKA_INLINE
+void v3_copy(vec3 dst, const vec3 src)
+{
+    dst[0] = src[0];
+    dst[1] = src[1];
+    dst[2] = src[2];
+}
+
+MATEMATIKA_INLINE
 float v3_dot(const vec3 v0, const vec3 v1)
 {
     return (v0[0] * v1[0] + v0[1] * v1[1] + v0[2] * v1[2]);
@@ -529,7 +537,7 @@ void m4_make_roty(mat4 matrix, float angle)
 MATEMATIKA_INLINE
 void AABB_make(vec3 pos[3], int AABB[4])
 {
-    /* Get the bounding box of the triangle, setting pos[0] as starting values */
+    // get the bounding box of the triangle, setting pos[0] as starting values
     float fminX = pos[0][0];
     float fminY = pos[0][1];
     float fmaxX = pos[0][0];
@@ -537,7 +545,7 @@ void AABB_make(vec3 pos[3], int AABB[4])
 
     for (int i = 1; i < 3; ++i)
     {
-        /* Update minimum and maximum values for x and y */
+        // update minimum and maximum values for x and y
         // const float x = pos[i][0];
         // const float y = pos[i][1];
 
