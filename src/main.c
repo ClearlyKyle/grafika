@@ -25,17 +25,17 @@ int main(int argc, char *argv[])
     text_startup(rend.surface, 12);
 
     // edging, stepping, matrix, avx, phong
-    // raster_state.obj = obj_load("res/Cube/cube.obj");
-    // raster_state.obj = obj_load("res/Lorry/lorry.obj");
-    // raster_state.obj = obj_load("res/Camera/Camera.obj");
-    // raster_state.obj = obj_load("res/Plane/Plane.obj");
+    raster_state.obj = obj_load("res/Cube/cube.obj", &arena);
+    // raster_state.obj = obj_load("res/Lorry/lorry.obj", &arena);
+    // raster_state.obj = obj_load("res/Camera/Camera.obj", &arena);
+    // raster_state.obj = obj_load("res/Plane/Plane.obj", &arena);
 
     // edging, stepping, matrix, avx, phong, normal mapping
-    // raster_state.obj = obj_load("res/Wooden Box/wooden crate.obj");
-    // raster_state.obj = obj_load("res/Dog House/Doghouse.obj");
+    // raster_state.obj = obj_load("res/Wooden Box/wooden crate.obj", &arena);
+    // raster_state.obj = obj_load("res/Dog House/Doghouse.obj", &arena);
 
     // edging, stepping, matrix, avx, phong, normal, parallax
-    raster_state.obj = obj_load("res/Square/square.obj", &arena);
+    // raster_state.obj = obj_load("res/Square/square.obj", &arena);
 
     // TODO : move this to the drawing functions?
     ASSERT(raster_state.obj.mats, "Object must have atleast a diffuse texture\n");
