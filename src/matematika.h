@@ -34,6 +34,13 @@ typedef vec4  mat4[4];
 typedef vec3  mat3[3];
 
 MATEMATIKA_INLINE
+void v2_copy(vec2 dst, const vec2 src)
+{
+    dst[0] = src[0];
+    dst[1] = src[1];
+}
+
+MATEMATIKA_INLINE
 void v2_sub(const vec2 v0, const vec2 v1, vec2 res)
 {
     res[0] = v0[0] - v1[0];
