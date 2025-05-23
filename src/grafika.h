@@ -34,10 +34,10 @@ static inline void grafika_present(void)
     SDL_UpdateWindowSurface(rend.window);
 }
 
-static inline void grafika_setpixel(int x, int y, uint32_t colour)
+static inline void grafika_setpixel(uint32_t x, uint32_t y, uint32_t colour)
 {
-    ASSERT(y <= GRAFIKA_SCREEN_WIDTH, "y - %d out of bounds\n", y);
-    ASSERT(x <= GRAFIKA_SCREEN_HEIGHT, "x - %d out of bounds\n", x);
+    ASSERT(y <= GRAFIKA_SCREEN_WIDTH, "y - %u out of bounds\n", y);
+    ASSERT(x <= GRAFIKA_SCREEN_HEIGHT, "x - %u out of bounds\n", x);
 
 #if IS_POWER_OF_2(GRAFIKA_SCREEN_WIDTH)
     rend.pixels[(y << 9) + x] = colour; // why 9? 1 << 9 == 512, y << 9 == y * 512
