@@ -222,7 +222,7 @@ int debug_timed_block_end(const int counter, const uint64_t current_cycles)
     const uint64_t table_and_event_index = Atomic_Add64(&global_debug_state->table_and_event_index, 1);
     const uint32_t table_index           = (const uint32_t)(table_and_event_index >> 32);
     const uint32_t event_index           = (const uint32_t)(table_and_event_index & 0xFFFFFFFF);
-    ASSERT(event_index < DEBUG_MAX_EVENTS, "event index too big!");
+    ASSERT(event_index < DEBUG_MAX_EVENTS, "event index too big!\n");
 
     struct debug_event *event = global_debug_state->table[table_index].events + event_index;
     event->record_index       = (uint32_t)(counter); // NOTE : casting
