@@ -111,11 +111,11 @@ static void draw_triangle(const struct triangle t)
 
             unsigned char *tex_colour = tex_data + (((int)u + tex_w * (int)v) * tex_bpp);
 
-            uint32_t pixelcolour = ((uint32_t)tex_colour[0] << 16) |
-                                   ((uint32_t)tex_colour[1] << 8) |
-                                   (uint32_t)tex_colour[2];
+            uint32_t pixel_colour = ((uint32_t)tex_colour[0] << 16) |
+                                    ((uint32_t)tex_colour[1] << 8) |
+                                    (uint32_t)tex_colour[2];
 
-            grafika_setpixel(x, y, pixelcolour);
+            grafika_setpixel(x, y, pixel_colour);
         }
     }
 }
@@ -125,8 +125,8 @@ static struct triangle *triangles = NULL;
 void draw_object(struct arena *arena)
 {
     struct obj          obj      = raster_state.obj;
-    float         *pPos     = obj.pos;
-    float         *pTex     = obj.texs;
+    float              *pPos     = obj.pos;
+    float              *pTex     = obj.texs;
     struct vertindices *pIndices = obj.indices;
 
 #if 1
@@ -140,7 +140,7 @@ void draw_object(struct arena *arena)
         for (size_t i = 0; i < obj.num_f_rows; ++i)
         { // CW triangles (which blender uses)
             struct vertindices indices0   = pIndices[i * 3 + 2];
-            const int     pos_index0 = indices0.v_idx;
+            const int          pos_index0 = indices0.v_idx;
 
             triangles[i].pos[0][0] = pPos[3 * pos_index0 + 0];
             triangles[i].pos[0][1] = pPos[3 * pos_index0 + 1];
@@ -151,7 +151,7 @@ void draw_object(struct arena *arena)
             triangles[i].tex[0][1] = pTex[2 * tex_index0 + 1];
 
             struct vertindices indices1   = pIndices[i * 3 + 1];
-            const int     pos_index1 = indices1.v_idx;
+            const int          pos_index1 = indices1.v_idx;
 
             triangles[i].pos[1][0] = pPos[3 * pos_index1 + 0];
             triangles[i].pos[1][1] = pPos[3 * pos_index1 + 1];
@@ -162,7 +162,7 @@ void draw_object(struct arena *arena)
             triangles[i].tex[1][1] = pTex[2 * tex_index1 + 1];
 
             struct vertindices indices2   = pIndices[i * 3 + 0];
-            const int     pos_index2 = indices2.v_idx;
+            const int          pos_index2 = indices2.v_idx;
 
             triangles[i].pos[2][0] = pPos[3 * pos_index2 + 0];
             triangles[i].pos[2][1] = pPos[3 * pos_index2 + 1];
