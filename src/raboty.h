@@ -25,6 +25,8 @@ bool job_submit(struct job job);
 void jobs_complete_all_work(void);
 void jobs_shutdown(void);
 
+uint32_t jobs_get_proccessor_count(void);
+
 #endif // __RABOTY_H__
 
 #ifdef RABOTY_IMPLEMENTATION
@@ -170,6 +172,14 @@ static int _worker_thread_function(void *data)
     }
 
     return 0;
+}
+
+uint32_t jobs_get_proccessor_count(void)
+{
+    SYSTEM_INFO sysInfo;
+    GetSystemInfo(&sysInfo);
+
+    return sysInfo.dwNumberOfProcessors;
 }
 
 void jobs_init(void)
