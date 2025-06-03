@@ -1,6 +1,21 @@
 #include "common.h"
 
-struct rasterstate raster_state = {0};
+struct triangle
+{
+    vec3 pos[3];
+    vec2 tex[3];
+};
+
+struct matrix
+{
+    mat4       model;
+    mat4       MVP;
+    vec3       cam_pos;
+    tex_t      tex;
+    struct obj obj;
+};
+
+struct matrix raster_state = {0};
 
 // use this to precompute the tie braker edge conditions, use the E value before looping through the pixels
 static inline bool tie_breaker_ab_test(const vec3 E)
@@ -135,7 +150,7 @@ static void draw_triangle(const struct triangle t)
             vec3 littlef_values = {eval_edge_func_0 * r, eval_edge_func_1 * r, eval_edge_func_2 * r};
 
             // interpolate depth value
-            const int index = (x * GRAFIKA_SCREEN_WIDTH) + y;
+            const int index = (x * GRAFIKA_SCREEN_WIDTH) + y; // NOTE : is this wrong?
 
             const float depth = interpolate_values(littlef_values, z_values);
 
@@ -162,9 +177,19 @@ static void draw_triangle(const struct triangle t)
                                     ((uint32_t)tex_colour[1] << 8) |
                                     (uint32_t)tex_colour[2];
 
-            grafika_setpixel(x, y, pixel_colour);
+            grafika_setpixel((uint32_t)x, (uint32_t)y, pixel_colour);
         }
     }
+}
+
+void draw_onstart(struct arena *arena)
+{
+    UNUSED(arena);
+
+    struct obj obj = raster_state.obj;
+
+    ASSERT(obj.mats, "Object must have atleast a diffuse texture\n");
+    raster_state.tex = tex_load(obj.mats[0].map_Kd);
 }
 
 void draw_object(struct arena *arena)
@@ -174,8 +199,8 @@ void draw_object(struct arena *arena)
 #pragma omp parallel
     {
         struct obj          obj         = raster_state.obj;
-        float         *obj_pos     = obj.pos;
-        float         *obj_tex     = obj.texs;
+        float              *obj_pos     = obj.pos;
+        float              *obj_tex     = obj.texs;
         struct vertindices *obj_indices = obj.indices;
 
 #pragma omp for
@@ -206,4 +231,10 @@ void draw_object(struct arena *arena)
             draw_triangle(t);
         }
     }
+}
+
+void draw_onexit(void)
+{
+    tex_destroy(&raster_state.tex);
+    // raster_state.obj       // cleaned up by arena
 }

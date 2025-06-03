@@ -1,6 +1,22 @@
 #include "common.h"
 
-struct rasterstate raster_state = {0};
+struct triangle
+{
+    vec3 pos[3];
+    vec2 tex[3];
+};
+
+struct edging
+{
+    mat4             model;
+    mat4             MVP;
+    vec3             cam_pos;
+    tex_t            tex;
+    struct obj       obj;
+    struct triangle *triangles;
+};
+
+struct edging raster_state = {0};
 
 static void draw_triangle(const struct triangle t)
 {
@@ -115,23 +131,32 @@ static void draw_triangle(const struct triangle t)
                                     ((uint32_t)tex_colour[1] << 8) |
                                     (uint32_t)tex_colour[2];
 
-            grafika_setpixel(x, y, pixel_colour);
+            grafika_setpixel((uint32_t)x, (uint32_t)y, pixel_colour);
         }
     }
 }
 
-static struct triangle *triangles = NULL;
+void draw_onstart(struct arena *arena)
+{
+    struct obj obj = raster_state.obj;
+
+    ASSERT(obj.mats, "Object must have atleast a diffuse texture\n");
+    raster_state.tex = tex_load(obj.mats[0].map_Kd);
+
+    raster_state.triangles = arena_alloc_aligned(arena, sizeof(struct triangle) * obj.num_f_rows, 16);
+}
 
 void draw_object(struct arena *arena)
 {
-    struct obj          obj      = raster_state.obj;
-    float              *pPos     = obj.pos;
-    float              *pTex     = obj.texs;
-    struct vertindices *pIndices = obj.indices;
+    UNUSED(arena);
+
+    struct triangle    *triangles = raster_state.triangles;
+    struct obj          obj       = raster_state.obj;
+    float              *pPos      = obj.pos;
+    float              *pTex      = obj.texs;
+    struct vertindices *pIndices  = obj.indices;
 
 #if 1
-    if (triangles == NULL)
-        triangles = arena_alloc_aligned(arena, sizeof(struct triangle) * obj.num_f_rows, 16);
 
     // #pragma omp parallel
     {
@@ -209,4 +234,11 @@ void draw_object(struct arena *arena)
         }
     }
 #endif
+}
+
+void draw_onexit(void)
+{
+    tex_destroy(&raster_state.tex);
+    // raster_state.obj       // cleaned up by arena
+    // raster_state.triangles // cleaned up by arena
 }

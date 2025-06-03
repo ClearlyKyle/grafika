@@ -1,7 +1,16 @@
 #include "common.h"
 
-struct rasterstate raster_state         = {0};
-static float      *transformed_vertices = NULL;
+struct matrix_simd
+{
+    mat4       model;
+    mat4       MVP;
+    vec3       cam_pos;
+    tex_t      tex;
+    struct obj obj;
+    float     *transformed_vertices;
+};
+
+struct matrix_simd raster_state = {0};
 
 #ifdef LH_COORDINATE_SYSTEM
     #define VP_MATRIX                                                                                  \
@@ -159,8 +168,8 @@ static void draw_triangle(vec4 verts[3], vec2 tex_coords[3])
         {
             // we are stepping 4 pixels at a time in the x direction
             // a * s
-            __m128 edge0_as = _mm_mul_ps(edge0_A, step_x);
-            __m128 edge1_as = _mm_mul_ps(edge1_A, step_x);
+            __m128 edge0_as = _mm_mul_ps(edge0_A, step_x); // TODO : move this out the loop
+            __m128 edge1_as = _mm_mul_ps(edge1_A, step_x); // "add" instead
             __m128 edge2_as = _mm_mul_ps(edge2_A, step_x);
 
             // b * t
@@ -224,7 +233,7 @@ static void draw_triangle(vec4 verts[3], vec2 tex_coords[3])
             const __m128 sseZInterpolated = interpolate_values(F, Z);
 
             float       *pDepth          = &depth_buffer[pixel_index];
-            const __m128 sseDepthCurrent = _mm_loadu_ps(pDepth);
+            const __m128 sseDepthCurrent = _mm_load_ps(pDepth);
 
             const __m128 sseDepthRes = _mm_cmple_ps(sseZInterpolated, sseDepthCurrent);
 
@@ -272,10 +281,10 @@ static void draw_triangle(vec4 verts[3], vec2 tex_coords[3])
             for (int i = 0; i < 4; ++i)
                 sample[i] = (char *)(tex_data + offset[i]);
 
-            __m128i final_colour = _mm_setr_epi8(sample[0][2], sample[0][0], sample[0][1], -1,
-                                                 sample[1][2], sample[1][0], sample[1][1], -1,
-                                                 sample[2][2], sample[2][0], sample[2][1], -1,
-                                                 sample[3][2], sample[3][0], sample[3][1], -1);
+            __m128i final_colour = _mm_set_epi8(-1, sample[3][0], sample[3][1], sample[3][2],
+                                                -1, sample[2][0], sample[2][1], sample[2][2],
+                                                -1, sample[1][0], sample[1][1], sample[1][2],
+                                                -1, sample[0][0], sample[0][1], sample[0][2]);
 
             uint32_t *pixel_location = &rend.pixels[pixel_index];
 
@@ -298,17 +307,29 @@ static void draw_triangle(vec4 verts[3], vec2 tex_coords[3])
     }
 }
 
+void draw_onstart(struct arena *arena)
+{
+    UNUSED(arena);
+
+    struct obj obj = raster_state.obj;
+
+    ASSERT(obj.mats, "Object must have atleast a diffuse texture\n");
+    raster_state.tex = tex_load(obj.mats[0].map_Kd);
+
+    raster_state.transformed_vertices = arena_alloc_aligned(arena, sizeof(vec4) * obj.num_pos, 16);
+}
+
 void draw_object(struct arena *arena)
 {
+    UNUSED(arena);
+
     mat4 cum_matrix = {0};
     m4_mul_m4(VP_MATRIX, raster_state.MVP, cum_matrix);
 
+    float *trans_verts = raster_state.transformed_vertices;
+
     const struct obj obj = raster_state.obj;
-
-    if (!transformed_vertices)
-        transformed_vertices = arena_alloc_aligned(arena, sizeof(vec4) * obj.num_pos, 16);
-
-    float *pos = obj.pos;
+    float           *pos = obj.pos;
 
 #pragma omp parallel
     {
@@ -320,11 +341,11 @@ void draw_object(struct arena *arena)
                            pos[i * 3 + 1],
                            pos[i * 3 + 2],
                            1.0f};
-            m4_mul_v4(cum_matrix, vertex, &transformed_vertices[i * 4]);
+            m4_mul_v4(cum_matrix, vertex, &trans_verts[i * 4]);
         }
 
-        float         *obj_pos     = transformed_vertices;
-        float         *obj_tex     = obj.texs;
+        float              *obj_pos     = trans_verts;
+        float              *obj_tex     = obj.texs;
         struct vertindices *obj_indices = obj.indices;
 
 #pragma omp for
@@ -356,4 +377,11 @@ void draw_object(struct arena *arena)
             draw_triangle(vertices, tex_coords);
         }
     }
+}
+
+void draw_onexit(void)
+{
+    tex_destroy(&raster_state.tex);
+    // raster_state.obj                     // cleaned up by arena
+    // raster_state.transformed_vertices    // cleaned up by arena
 }

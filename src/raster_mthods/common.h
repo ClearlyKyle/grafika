@@ -15,21 +15,7 @@
 #include <xmmintrin.h>
 #include <immintrin.h>
 
-struct triangle
-{
-    vec3 pos[3];
-    vec2 tex[3];
-};
-
-struct rasterstate
-{
-    mat4       model;
-    mat4       MVP;
-    vec3       cam_pos;
-    tex_t      tex;
-    struct obj obj;
-};
-
+void draw_onstart(struct arena *arena);
 void draw_object(struct arena *arena);
 void draw_onexit(void);
 

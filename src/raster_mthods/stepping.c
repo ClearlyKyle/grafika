@@ -1,6 +1,21 @@
 #include "common.h"
 
-struct rasterstate raster_state = {0};
+struct triangle
+{
+    vec3 pos[3];
+    vec2 tex[3];
+};
+
+struct stepping
+{
+    mat4       model;
+    mat4       MVP;
+    vec3       cam_pos;
+    tex_t      tex;
+    struct obj obj;
+};
+
+struct stepping raster_state = {0};
 
 static void draw_triangle(const struct triangle t)
 {
@@ -137,11 +152,21 @@ static void draw_triangle(const struct triangle t)
     }
 }
 
+void draw_onstart(struct arena *arena)
+{
+    UNUSED(arena);
+
+    struct obj obj = raster_state.obj;
+
+    ASSERT(obj.mats, "Object must have atleast a diffuse texture\n");
+    raster_state.tex = tex_load(obj.mats[0].map_Kd);
+}
+
 void draw_object(struct arena *arena)
 {
     UNUSED(arena);
 
-//#pragma omp parallel
+    // #pragma omp parallel
     {
         const struct obj obj = raster_state.obj;
 
@@ -149,7 +174,7 @@ void draw_object(struct arena *arena)
         float              *obj_tex     = obj.texs;
         struct vertindices *obj_indices = obj.indices;
 
-//#pragma omp for
+        // #pragma omp for
         for (size_t i = 0; i < obj.num_f_rows; ++i)
         {
             struct triangle t = {0};
@@ -175,4 +200,10 @@ void draw_object(struct arena *arena)
             draw_triangle(t);
         }
     }
+}
+
+void draw_onexit(void)
+{
+    tex_destroy(&raster_state.tex);
+    // raster_state.obj       // cleaned up by arena
 }
