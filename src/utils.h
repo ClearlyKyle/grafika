@@ -114,8 +114,8 @@ static void *ma_push_size(struct arena *arena, const size_t size)
     return (void *)result;
 }
 
-// main arean will reset after scope exit
-static struct arena tmp_arena(struct arena *a)
+// main arena will reset after scope exit
+static inline struct arena arena_create_tmp(struct arena *a)
 {
     return (struct arena){
         .base     = a->base + a->used,
