@@ -56,11 +56,11 @@ static inline void grafika_clear(void)
 static void grafika_startup(struct arena *arena)
 {
     if (0 != SDL_Init(SDL_INIT_VIDEO))
-        fprintf(stderr, "SDL failed to initialize: %s\n", SDL_GetError()), abort();
+        LOGE("SDL failed to initialize: %s\n", SDL_GetError()), abort();
 
     int img_flags = IMG_INIT_JPG | IMG_INIT_PNG;
     if (!(IMG_Init(img_flags) & img_flags))
-        fprintf(stderr, "IMG_Init failed to initialize: %s\n", IMG_GetError()), abort();
+        LOGE("IMG_Init failed to initialize: %s\n", IMG_GetError()), abort();
 
     rend.window = SDL_CreateWindow("grafika",
                                    SDL_WINDOWPOS_CENTERED,
