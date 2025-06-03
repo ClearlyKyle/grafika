@@ -8,10 +8,10 @@
 #if 0
     #define LH_COORDINATE_SYSTEM
 #else
-    #define RH_COORDINATE_SYSTEM /* Blender uses RH */
+    #define RH_COORDINATE_SYSTEM // Blender uses RH
 #endif
 
-// GCC have funny inline rules, this will help
+// GCC have funny inline rules
 #if defined(_MSC_VER)
     #define MATEMATIKA_INLINE __forceinline
 #elif defined(__GNUC__) || defined(__clang__)
@@ -45,6 +45,14 @@ void v2_sub(const vec2 v0, const vec2 v1, vec2 res)
 {
     res[0] = v0[0] - v1[0];
     res[1] = v0[1] - v1[1];
+}
+
+MATEMATIKA_INLINE
+void vec3_set(vec3 dst, float x, float y, float z)
+{
+    dst[0] = x;
+    dst[1] = y;
+    dst[2] = z;
 }
 
 MATEMATIKA_INLINE
@@ -557,19 +565,16 @@ void AABB_make(vec3 pos[3], int AABB[4])
         // const float y = pos[i][1];
 
         // if (x < fminX) fminX = x;
-        // if (y < fminY) fminY = y;
-
         // if (x > fmaxX) fmaxX = x;
+
+        // if (y < fminY) fminY = y;
         // if (y > fmaxY) fmaxY = y;
 
-        if (pos[i][0] < fminX)
-            fminX = pos[i][0];
-        if (pos[i][1] < fminY)
-            fminY = pos[i][1];
-        if (pos[i][0] > fmaxX)
-            fmaxX = pos[i][0];
-        if (pos[i][1] > fmaxY)
-            fmaxY = pos[i][1];
+        if (pos[i][0] < fminX) fminX = pos[i][0];
+        if (pos[i][0] > fmaxX) fmaxX = pos[i][0];
+
+        if (pos[i][1] < fminY) fminY = pos[i][1];
+        if (pos[i][1] > fmaxY) fmaxY = pos[i][1];
     }
 
     AABB[0] = max(0, min((int)fminX, GRAFIKA_SCREEN_WIDTH - 1));  // minX
