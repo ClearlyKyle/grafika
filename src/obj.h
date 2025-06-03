@@ -120,7 +120,7 @@ static void _material_file(struct arena *arena, char *line, struct material **ma
         {
             // Create new material struct
             mat_counter++;
-            LOG("Creating new mat\n");
+            // LOG("Creating new mat\n");
             *mat_data = realloc(*mat_data, sizeof(struct material) * mat_counter);
 
             curr_mat = mat_data[mat_counter - 1];
@@ -221,7 +221,8 @@ static void parse_f_line(char *fline, const int num_vertex_values, struct vertin
         current_char++; // Move to the next character after the space
 
         // Extract normal index
-        normal_index = atoi(current_char);
+        if (*current_char != ' ')
+            normal_index = atoi(current_char);
 
         // Print the extracted values
         index_data[collected_indices].v_idx  = vertex_index - 1;
@@ -420,25 +421,7 @@ struct obj obj_load(const char *filename, struct arena *arena)
 
 void obj_destroy(struct obj *obj)
 {
-    if (!obj) return;
-
-    // if (obj->pos) free(obj->pos);
-    // if (obj->norms) free(obj->norms);
-    // if (obj->texs) free(obj->texs);
-    // if (obj->indices) free(obj->indices);
-
-    // if (obj->mats)
-    //{
-    //     for (size_t i = 0; i < obj->num_of_mats; i++)
-    //     {
-    //         if (obj->mats[i].name) free(obj->mats[i].name);
-    //         if (obj->mats[i].map_Kd) free(obj->mats[i].map_Kd);
-    //         if (obj->mats[i].map_bump) free(obj->mats[i].map_bump);
-    //         if (obj->mats[i].disp) free(obj->mats[i].disp);
-    //     }
-
-    //    free(obj->mats);
-    //}
+    ASSERT(obj, "Invalid object to be destroyed\n");
 
     *obj = (struct obj){0};
 
