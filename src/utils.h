@@ -6,6 +6,8 @@
 #include <stdio.h>
 #include <stdint.h>
 
+#define CAST_CHECK
+
 #define UNUSED(VAR)      ((void)(VAR))
 #define IS_POWER_OF_2(x) ((x) > 0 && ((x) & ((x) - 1)) == 0)
 
@@ -55,6 +57,18 @@ static inline void _log_printf(const char *level, const char *fmt, ...)
 #endif
 
 //
+// CASTING
+//
+// clang-format off
+#ifdef CAST_CHECK
+static inline uint8_t  cast_u32_to_u8 (const uint32_t n)   {   ASSERT(n <= UINT8_MAX, "Cast Failed\n"); return (uint8_t )n; }
+static inline uint32_t cast_i32_to_u32(const int32_t n)    {   ASSERT(n >= 0, "Cast Failed\n");         return (uint32_t)n; }
+#else
+#define cast_u32_to_u8(n)   ((uint8_t)(n))
+#endif
+// clang-format on
+
+//
 // ARENA
 //
 struct arena
@@ -96,8 +110,8 @@ static void *arena_alloc_aligned(struct arena *arena, size_t size, size_t alignm
 
     arena->used += size + padding;
 
-    LOG("allocated: %zu (req) + %zu (padding), remaining: %zu\n",
-        size, padding, arena->capacity - arena->used);
+    // LOG("allocated: %zu (req) + %zu (padding), remaining: %zu\n",
+    //     size, padding, arena->capacity - arena->used);
 
     return (void *)aligned_ptr;
 }
