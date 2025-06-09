@@ -190,8 +190,10 @@ static void parse_f_line(char *fline, const int num_vertex_values, struct vertin
 {
     (void)num_vertex_values;
 
-    int   vertex_index, texture_index, normal_index;
-    char *current_char = fline + 2; // Skip the leading 'f' character and whitespace
+    int   vertex_index  = 0;
+    int   texture_index = 0;
+    int   normal_index  = 0;
+    char *current_char  = fline + 2; // Skip the leading 'f' character and whitespace
 
     int collected_indices = 0;
 
