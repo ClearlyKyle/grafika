@@ -1,11 +1,8 @@
-# Make sure there are no spaces after setting variables
-# Check for correct indentation!
+#
+CC := gcc
+PKG_CONFIG := pkg-config
 
-# Build settings
-CC = gcc
-PKG_CONFIG = pkg-config
-
-CFLAGS := -g -std=gnu11
+CFLAGS := -g -std=gnu11 -ffast-math
 
 # CFLAGS += -gdwarf-2 # DrMemory things
 
@@ -65,87 +62,53 @@ CFLAGS += -fcf-protection=full # <full|return|branch>
 #CFLAGS += -D_FORTIFY_SOURCE=2 # GCC < 12, will enable additional security features of the GNU libc when calling memory and string handling functions Ref
 CFLAGS += -D_FORTIFY_SOURCE=3 # GCC 12,  will try to detect overflows in variable length variables
 
-#CFLAGS += -fsanitize=address \
-#-fsanitize=pointer-compare \
-#-fsanitize=pointer-subtract \
-#-fno-omit-frame-pointer \
-#-fsanitize=undefined \
-#-fsanitize=bounds-strict \
-#-fsanitize=float-divide-by-zero \
-#-fsanitize=leak \
-#-fsanitize=float-cast-overflow
-#export ASAN_OPTIONS=strict_string_checks=1:detect_stack_use_after_return=1:check_initialization_order=1:strict_init_order=1:detect_invalid_pointer_pairs=2
-
 # ignore errors
 CFLAGS += -Wno-unused-function
 
 # release flags
 CFLAGS_RELEASE := -O3 -DNDEBUG -mconsole -fopenmp -msse4.1
 
-EXEC 		:= ModelViewer#
-OUTPUT_DIR 	:= bin#
-SRC_DIR 	:= src#
-
-INC_DIRS 	:= ./src ./src/graphics/#
-
-# pkg-config Library names
+# pkg-config library names
 LIB_NAMES := sdl2 SDL2_ttf SDL2_image
 
-# Library flags and linking
 LIB_CFLAGS  := $(shell $(PKG_CONFIG) --cflags $(LIB_NAMES))
 LIB_LDFLAGS := $(shell $(PKG_CONFIG) --libs-only-L --libs-only-l $(LIB_NAMES)) -lm
 
-# Add the include directories
+INC_DIRS 	:= ./src ./src/graphics/#
+
 CFLAGS         += $(addprefix -I, $(INC_DIRS))
 CFLAGS_RELEASE += $(addprefix -I, $(INC_DIRS))
 
-# List of source files, all of the .c files
-SOURCES := $(wildcard $(SRC_DIR)/*.c)
+SRC_DIR := src#
+BIN_DIR := bin#
 
-# Generate object file names based on source file names
-# Convert source files to object file names
-# put the % part of the first section, into the % part of the second section
-# using the data from the last section
-OBJECTS := $(patsubst $(SRC_DIR)/%.c,$(OUTPUT_DIR)/%.o,$(SOURCES))
-DEPENDS := $(patsubst $(SRC_DIR)/%.c,$(OUTPUT_DIR)/%.d,$(SOURCES))
+MAIN_TARGETS := main terrain
 
-# Default target
-all: $(OUTPUT_DIR)/$(EXEC)
+all: $(addprefix $(BIN_DIR)/,$(MAIN_TARGETS:=.exe))
 
-# Rule to build the executable
-$(OUTPUT_DIR)/$(EXEC): $(OBJECTS)
-	@echo Building Exe : $^
-	$(CC) $(CFLAGS) $^ -o $@ $(LIB_LDFLAGS)
+$(BIN_DIR)/%.exe: $(BIN_DIR)/%.o | $(BIN_DIR)
+	@echo "Linking $@..."
+	@$(CC) -fopenmp $(LDFLAGS) $^ -o $@ $(LIB_LDFLAGS)
+	@echo "Successfully built $@"
 
-# Build the object files
-$(OBJECTS): $(SOURCES)
-	@echo Building Oject : $<
-	$(CC) $(CFLAGS) $(LIB_CFLAGS) -MMD -MP -c $< -o $@
+$(BIN_DIR)/%.o: $(SRC_DIR)/%.c | $(BIN_DIR)
+	@echo "Compiling main $<..."
+	@mkdir -p $(dir $@)
+	@$(CC) $(CFLAGS) $(LIB_CFLAGS) -MMD -MP -c $< -o $@
 
-# without phony, make assumes "build" is a file that needs to be made
-.PHONY: build
-build: $(OUTPUT_DIR)/$(EXEC)
+# include auto-generated dependencies for MAIN_TARGETS only
+-include $(addprefix $(BIN_DIR)/,$(MAIN_TARGETS:=.d))
 
-# Release target
-.PHONY: release
-release:
-	@make build CFLAGS="$(CFLAGS_RELEASE)"
+$(MAIN_TARGETS): %: $(BIN_DIR)/%.exe
 
-.PHONY: run
-run:
-	$(OUTPUT_DIR)/$(EXEC)
+$(BIN_DIR):
+	@mkdir -p $@
 
-.PHONY: clean
 clean:
-	rm -f $(OUTPUT_DIR)/*.exe $(OUTPUT_DIR)/*.o $(OUTPUT_DIR)/*.d
-	@echo [CLEAN] Clean completed!
+	@rm -rf $(BIN_DIR)
+	@echo "Cleaned build directory"
 
--include $(DEPENDS)
-
-debug_vars:
-	@echo $(OUTPUT_DIR)/$(EXEC)
-	@echo $(SOURCES)
-	@echo $(OBJECTS)
+flags:
 	@echo $(CFLAGS)
-	@echo $(LIB_LDFLAGS)
-	@echo $(LIB_CFLAGS)
+
+.PHONY: all clean $(MAIN_TARGETS)
