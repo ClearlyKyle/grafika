@@ -45,40 +45,40 @@ static void draw_triangle(const struct triangle t)
         ndc[i][2] = clip_space[i][2] * w_vals[i];
     }
 
-    // back face culling (surface normal)
-    vec3 sub10, sub20, normal;
-    v3_sub(ndc[1], ndc[0], sub10);
-    v3_sub(ndc[2], ndc[0], sub20);
-    v3_cross(sub10, sub20, normal);
-    if (normal[2] > 0.0f)
-        return;
-
     vec3 screen_space[3];
     for (int i = 0; i < 3; ++i)
     {
         screen_space[i][0] = (ndc[i][0] + 1.0f) * 0.5f * GRAFIKA_SCREEN_WIDTH;
-        screen_space[i][1] = (ndc[i][1] + 1.0f) * 0.5f * GRAFIKA_SCREEN_HEIGHT;
+        screen_space[i][1] = (1.0f - ndc[i][1]) * 0.5f * GRAFIKA_SCREEN_HEIGHT;
         screen_space[i][2] = (ndc[i][2] + 1.0f) * 0.5f;
     }
-
-    // calculate bounding rectangle
-    int AABB[4] = {0};
-    AABB_make(screen_space, AABB);
 
     const float dY0 = screen_space[2][1] - screen_space[1][1], dX0 = screen_space[1][0] - screen_space[2][0];
     const float dY1 = screen_space[0][1] - screen_space[2][1], dX1 = screen_space[2][0] - screen_space[0][0];
     const float dY2 = screen_space[1][1] - screen_space[0][1], dX2 = screen_space[0][0] - screen_space[1][0];
 
+    // back face culling
+    float signed_area = (dX1 * dY2 - dY1 * dX2);
+
+    // If cross_z > 0, the triangle is counter-clockwise (CCW).
+    // If cross_z < 0, the triangle is clockwise (CW).
+    // If cross_z == 0, the triangle is degenerate (its points are collinear).
+    if (signed_area > 0.0f) return;
+
     const float C0 = (screen_space[2][0] * screen_space[1][1]) - (screen_space[2][1] * screen_space[1][0]);
     const float C1 = (screen_space[0][0] * screen_space[2][1]) - (screen_space[0][1] * screen_space[2][0]);
     const float C2 = (screen_space[1][0] * screen_space[0][1]) - (screen_space[1][1] * screen_space[0][0]);
 
-    const float inv_area = 1.0f / (dX1 * dY2 - dY1 * dX2);
+    // calculate bounding rectangle
+    int AABB[4] = {0};
+    AABB_make(screen_space, AABB);
 
     // const vec3 P     = {minX + 0.5f, minY + 0.5f, 0.0f};
-    float alpha = (dY0 * ((float)AABB[0] + 0.5f)) + (dX0 * ((float)AABB[1] + 0.5f)) + C0;
-    float betaa = (dY1 * ((float)AABB[0] + 0.5f)) + (dX1 * ((float)AABB[1] + 0.5f)) + C1;
-    float gamma = (dY2 * ((float)AABB[0] + 0.5f)) + (dX2 * ((float)AABB[1] + 0.5f)) + C2;
+    float alpha = (dY0 * (float)AABB[0]) + (dX0 * (float)AABB[1]) + C0;
+    float betaa = (dY1 * (float)AABB[0]) + (dX1 * (float)AABB[1]) + C1;
+    float gamma = (dY2 * (float)AABB[0]) + (dX2 * (float)AABB[1]) + C2;
+
+    const float inv_area = 1.0f / signed_area;
 
     screen_space[1][2] = (screen_space[1][2] - screen_space[0][2]) * inv_area;
     screen_space[2][2] = (screen_space[2][2] - screen_space[0][2]) * inv_area;
@@ -108,10 +108,10 @@ static void draw_triangle(const struct triangle t)
                                             w2 += dY2,      // one step to the right
                                             depth += zstep) // step the depth
         {
-            if (w0 < 0.0f || w1 < 0.0f || w2 < 0.0f)
-                continue;
+            // if (w0 < 0.0f || w1 < 0.0f || w2 < 0.0f) continue;
+            if (w0 > 0.0f || w1 > 0.0f || w2 > 0.0f) continue;
 
-            const int index = (x * GRAFIKA_SCREEN_WIDTH) + y;
+            const int index = (y * GRAFIKA_SCREEN_WIDTH) + x;
 
             float      *oldZ = depth_buffer + index;
             const float invZ = depth;
@@ -185,11 +185,13 @@ void draw_object(struct arena *arena)
 
                 const int pos_index = indices.v_idx;
                 const int tex_index = indices.vt_idx;
-#if 0
+
+#ifdef CCW_TRIANGLES
                 const size_t store_index = j; // CCW triangles
 #else
                 const size_t store_index = 2 - j; // CW triangles (which blender uses)
 #endif
+
                 t.pos[store_index][0] = obj_pos[3 * pos_index + 0];
                 t.pos[store_index][1] = obj_pos[3 * pos_index + 1];
                 t.pos[store_index][2] = obj_pos[3 * pos_index + 2];

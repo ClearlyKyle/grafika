@@ -9,6 +9,19 @@ struct triangle
     vec2 tex[3];
 };
 
+struct render_region
+{
+    int minx, miny, maxx, maxy;
+};
+
+#define TILE_COUNT_X (2)
+#define TILE_COUNT_Y (2)
+
+struct raster_job_data
+{
+    struct render_region region;
+};
+
 struct stepping_simd_jobs
 {
     mat4       model;
@@ -16,11 +29,17 @@ struct stepping_simd_jobs
     vec3       cam_pos;
     tex_t      tex;
     struct obj obj;
+
+    size_t           triangle_count;
+    struct triangle *triangles;
+
+    struct raster_job_data job_data[TILE_COUNT_X * TILE_COUNT_Y];
 };
 
-struct stepping_simd_jobs raster_state = {0};
+static struct render_region      regions[TILE_COUNT_X * TILE_COUNT_Y] = {0};
+static struct stepping_simd_jobs raster_state                         = {0};
 
-static void draw_triangle(const struct triangle t, int region[4])
+static void draw_triangle(const struct triangle t, struct render_region region)
 {
     // convert to clip space
     vec4 clip_space[3];
@@ -48,19 +67,11 @@ static void draw_triangle(const struct triangle t, int region[4])
         ndc[i][2] = clip_space[i][2] * w_vals[i];
     }
 
-    // back face culling (surface normal)
-    vec3 sub10, sub20, normal;
-    v3_sub(ndc[1], ndc[0], sub10);
-    v3_sub(ndc[2], ndc[0], sub20);
-    v3_cross(sub10, sub20, normal);
-    if (normal[2] > 0.0f)
-        return;
-
     vec3 screen_space[3];
     for (int i = 0; i < 3; ++i)
     {
         screen_space[i][0] = (ndc[i][0] + 1.0f) * 0.5f * GRAFIKA_SCREEN_WIDTH;
-        screen_space[i][1] = (ndc[i][1] + 1.0f) * 0.5f * GRAFIKA_SCREEN_HEIGHT;
+        screen_space[i][1] = (1.0f - ndc[i][1]) * 0.5f * GRAFIKA_SCREEN_HEIGHT;
         screen_space[i][2] = (ndc[i][2] + 1.0f) * 0.5f;
     }
 
@@ -77,17 +88,28 @@ static void draw_triangle(const struct triangle t, int region[4])
 
     // clamp to region
     int AABB[4] = {0};
-    AABB[0]     = (min_x < region[0]) ? region[0] : min_x;
-    AABB[1]     = (min_y < region[1]) ? region[1] : min_y;
-    AABB[2]     = (max_x > region[2]) ? region[2] : max_x;
-    AABB[3]     = (max_y > region[3]) ? region[3] : max_y;
+    AABB[0]     = (min_x < region.minx) ? region.minx : min_x;
+    AABB[1]     = (min_y < region.miny) ? region.miny : min_y;
+    AABB[2]     = (max_x > region.maxx) ? region.maxx : max_x;
+    AABB[3]     = (max_y > region.maxy) ? region.maxy : max_y;
 
     AABB[0] = AABB[0] & ~3;       // round down AABB[0] to the nearest multiple of 4
     AABB[2] = (AABB[2] + 3) & ~3; // round up AABB[2] to the next multiple of 4 - 1
 
+    ASSERT(AABB[0] % 4 == 0, "starting x is not multiple of 4\n");
+    ASSERT(AABB[2] % 4 == 0, "ending x is not multiple of 4\n");
+
     const float dY0 = screen_space[2][1] - screen_space[1][1], dX0 = screen_space[1][0] - screen_space[2][0];
     const float dY1 = screen_space[0][1] - screen_space[2][1], dX1 = screen_space[2][0] - screen_space[0][0];
     const float dY2 = screen_space[1][1] - screen_space[0][1], dX2 = screen_space[0][0] - screen_space[1][0];
+
+    // back face culling
+    float signed_area = (dX1 * dY2 - dY1 * dX2);
+
+    // If cross_z > 0, the triangle is counter-clockwise (CCW).
+    // If cross_z < 0, the triangle is clockwise (CW).
+    // If cross_z == 0, the triangle is degenerate (its points are collinear).
+    if (signed_area > 0.0f) return;
 
     const float C0 = (screen_space[2][0] * screen_space[1][1]) - (screen_space[2][1] * screen_space[1][0]);
     const float C1 = (screen_space[0][0] * screen_space[2][1]) - (screen_space[0][1] * screen_space[2][0]);
@@ -139,7 +161,7 @@ static void draw_triangle(const struct triangle t, int region[4])
     const __m128 V1 = _mm_set1_ps(t.tex[1][1]);
     const __m128 V2 = _mm_set1_ps(t.tex[2][1]);
 
-    const float inv_area = 1.0f / (dX1 * dY2 - dY1 * dX2);
+    const float inv_area = 1.0f / signed_area;
     screen_space[1][2]   = (screen_space[1][2] - screen_space[0][2]) * inv_area;
     screen_space[2][2]   = (screen_space[2][2] - screen_space[0][2]) * inv_area;
 
@@ -184,20 +206,20 @@ static void draw_triangle(const struct triangle t, int region[4])
         __m128 betaa = E1;
         __m128 gamma = E2;
 
-        __m128 z = _mm_add_ps(_mm_add_ps(ss0, _mm_mul_ps(ss1, betaa)), _mm_mul_ps(ss2, gamma));
+        __m128 pix_z = _mm_add_ps(_mm_add_ps(ss0, _mm_mul_ps(ss1, betaa)), _mm_mul_ps(ss2, gamma));
 
         for (int x     = AABB[0]; x <= AABB[2]; x += 4,
                  alpha = _mm_add_ps(alpha, A0_inc),
                  betaa = _mm_add_ps(betaa, A1_inc),
                  gamma = _mm_add_ps(gamma, A2_inc),
-                 z     = _mm_add_ps(z, zstep))
+                 pix_z = _mm_add_ps(pix_z, zstep))
         {
-            __m128 EdgeFuncTestResult = _mm_and_ps(_mm_and_ps(
-                                                       _mm_cmpgt_ps(alpha, mm_0),
-                                                       _mm_cmpgt_ps(betaa, mm_0)),
-                                                   _mm_cmpgt_ps(gamma, mm_0));
+            __m128 mm_edge_test_result = _mm_and_ps(_mm_and_ps(
+                                                        _mm_cmplt_ps(alpha, mm_0),
+                                                        _mm_cmplt_ps(betaa, mm_0)),
+                                                    _mm_cmplt_ps(gamma, mm_0));
 
-            if (_mm_movemask_ps(EdgeFuncTestResult) == 0) continue;
+            if (_mm_movemask_ps(mm_edge_test_result) == 0) continue;
 
             __m128 wait0 = _mm_mul_ps(alpha, mm_w_vals0); // Bary A
             __m128 wait1 = _mm_mul_ps(betaa, mm_w_vals1); // B
@@ -211,17 +233,24 @@ static void draw_triangle(const struct triangle t, int region[4])
 
             const size_t pixel_index = (const size_t)(y * GRAFIKA_SCREEN_WIDTH + x);
 
-            float       *depth_location = &depth_buffer[pixel_index];
-            const __m128 current_depth  = _mm_load_ps(&rend.depth_buffer[pixel_index]);
+            float       *depth_location   = &depth_buffer[pixel_index];
+            const __m128 mm_current_depth = _mm_load_ps(depth_location);
 
-            const __m128 depth_test = _mm_cmple_ps(z, current_depth);
+            const __m128 mm_depth_test_result = _mm_cmple_ps(pix_z, mm_current_depth);
 
-            if (_mm_movemask_ps(depth_test) == 0) continue;
+            if (_mm_movemask_ps(mm_depth_test_result) == 0x0) continue;
 
-            const __m128 sseWriteMask = _mm_and_ps(depth_test, EdgeFuncTestResult);
-            __m128       blended      = _mm_blendv_ps(current_depth, z, sseWriteMask);
+            // AND depth mask & coverage mask for quads of fragments
+            const __m128 mm_write_mask = _mm_and_ps(mm_depth_test_result, mm_edge_test_result);
 
-            _mm_store_ps(depth_location, blended);
+#if 1
+            __m128 mm_depth_blended = _mm_blendv_ps(mm_current_depth, pix_z, mm_write_mask);
+            _mm_store_ps(depth_location, mm_depth_blended);
+#else
+            _mm_maskmoveu_si128(_mm_castps_si128(pix_z),
+                                _mm_castps_si128(mm_write_mask),
+                                (char *)depth_location);
+#endif
 
             __m128 pixU = _mm_add_ps(_mm_mul_ps(U2, wait2),
                                      _mm_add_ps(
@@ -239,11 +268,18 @@ static void draw_triangle(const struct triangle t, int region[4])
             pixV = _mm_max_ps(_mm_min_ps(pixV, mm_1), mm_0);
             pixV = _mm_mul_ps(pixV, mm_tex_h);
 
+#if 0
+            __m128i mm_vw = _mm_mullo_epi32(_mm_cvtps_epi32(pixV), mmi_tex_w);
+
+            __m128i mm_withou_bpp = _mm_add_epi32(_mm_cvtps_epi32(pixU), mm_vw);
+            __m128i tex_offset    = _mm_slli_epi32(mm_withou_bpp, 2); // multiply each element by 4
+#else
             // (U + tex.width * V) * tex.bpp
             __m128i tex_offset = _mm_mullo_epi32(_mm_add_epi32(
                                                      _mm_cvtps_epi32(pixU),
                                                      _mm_mullo_epi32(_mm_cvtps_epi32(pixV), mmi_tex_w)),
                                                  mmi_tex_bpp);
+#endif
 
 #if 0
             // const int32_t *offsets = (const int32_t *)&texOffset;
@@ -310,36 +346,28 @@ static void draw_triangle(const struct triangle t, int region[4])
                                                        _mm_andnot_si128(write_mask, *(__m128i *)pixel_location));
 
             _mm_store_si128((__m128i *)pixel_location, masked_output);
-#elif 1
+#elif 0
             uint32_t *pixel_location = &rend.pixels[pixel_index];
             // const __m128i original_pixel_data = _mm_load_si128((__m128i *)pixel_location);
             const __m128i write_mask    = _mm_castps_si128(sseWriteMask);
             const __m128i masked_output = _mm_blendv_epi8(*(__m128i *)pixel_location, final_colour, write_mask);
             _mm_store_si128((__m128i *)pixel_location, masked_output);
 #else
-            const __m128i write_mask = _mm_castps_si128(sseWriteMask);
-            _mm_maskstore_epi32((int *)&rend.pixels[pixel_index], write_mask, final_colour);
+            _mm_maskstore_epi32((int *)&rend.pixels[pixel_index], _mm_castps_si128(mm_write_mask), final_colour);
 #endif
         }
     }
     // TIMED_BLOCK_END(raster_pixels);
 }
 
-struct raster_job_data
-{
-    struct triangle *triangle_list;
-    uint32_t         triangle_count;
-    int              region[4];
-};
-
 static void raster_job(void *data)
 {
     struct raster_job_data *d = (struct raster_job_data *)data;
     ASSERT(d, "Raster job data is inavlid\n");
 
-    for (uint32_t i = 0; i < d->triangle_count; i++)
+    for (uint32_t i = 0; i < raster_state.triangle_count; i++)
     {
-        draw_triangle(d->triangle_list[i], d->region);
+        draw_triangle(raster_state.triangles[i], d->region);
     }
 }
 
@@ -351,25 +379,19 @@ void draw_onstart(struct arena *arena)
 
     struct obj obj = raster_state.obj;
 
-    ASSERT(obj.mats, "Object must have atleast a diffuse texture\n");
-    raster_state.tex = tex_load(obj.mats[0].map_Kd);
-}
-
-void draw_object(struct arena *arena)
-{
-    UNUSED(arena);
-
-    struct arena tmp_arena = arena_create_tmp(arena);
-
-    const struct obj obj = raster_state.obj;
-
     float              *obj_pos     = obj.pos;
     float              *obj_tex     = obj.texs;
     struct vertindices *obj_indices = obj.indices;
 
-    for (size_t i = 0; i < obj.num_f_rows; ++i)
+    ASSERT(obj.mats, "Object must have atleast a diffuse texture\n");
+    raster_state.tex = tex_load(obj.mats[0].map_Kd);
+
+    raster_state.triangle_count = obj.num_f_rows;
+    raster_state.triangles      = arena_alloc_aligned(arena, raster_state.triangle_count * sizeof(struct triangle), 16);
+
+    for (size_t i = 0; i < raster_state.triangle_count; ++i)
     {
-        struct triangle *t = ma_push_struct(&tmp_arena, struct triangle);
+        struct triangle *t = raster_state.triangles + i;
 
         for (size_t j = 0; j < 3; ++j)
         {
@@ -377,11 +399,13 @@ void draw_object(struct arena *arena)
 
             const int pos_index = indices.v_idx;
             const int tex_index = indices.vt_idx;
-#if 0
-                const size_t store_index = j; // CCW triangles
+
+#ifdef CCW_TRIANGLES
+            const size_t store_index = j; // CCW triangles
 #else
             const size_t store_index = 2 - j; // CW triangles (which blender uses)
 #endif
+
             t->pos[store_index][0] = obj_pos[3 * pos_index + 0];
             t->pos[store_index][1] = obj_pos[3 * pos_index + 1];
             t->pos[store_index][2] = obj_pos[3 * pos_index + 2];
@@ -391,57 +415,55 @@ void draw_object(struct arena *arena)
         }
     }
 
+    int tile_w = GRAFIKA_SCREEN_WIDTH / TILE_COUNT_X;
+    int tile_h = GRAFIKA_SCREEN_HEIGHT / TILE_COUNT_Y;
+
+    tile_w = ((tile_w + 3) / 4) * 4; // rouding up to nearest 4
+
+    for (int32_t tile_y = 0; tile_y < TILE_COUNT_Y; tile_y++)
+    {
+        for (int32_t tile_x = 0; tile_x < TILE_COUNT_X; tile_x++)
+        {
+            int32_t index = tile_y * TILE_COUNT_Y + tile_x;
+
+            struct render_region *region = regions + index;
+
+            region->minx = (tile_x * tile_w);
+            region->maxx = (region->minx + tile_w);
+
+            if (tile_x == (TILE_COUNT_X - 1))
+            {
+                region->maxx = GRAFIKA_SCREEN_WIDTH; // clip to max screen width
+            }
+
+            region->miny = (tile_y * tile_h);
+            region->maxy = (region->miny + tile_h);
+
+            if (tile_y == (TILE_COUNT_Y - 1))
+            {
+                region->maxy = GRAFIKA_SCREEN_HEIGHT; // clip to max screen height
+            }
+        }
+    }
+
+    for (int32_t tile = 0; tile < (TILE_COUNT_X * TILE_COUNT_Y); tile++)
+    {
+        raster_state.job_data[tile].region = regions[tile];
+    }
+}
+
+void draw_object(struct arena *arena)
+{
+    UNUSED(arena);
+
     // 1 - have a list of all triangles to be rendered
     // 2 - pass all triangles to all threads
     // 3 - give each thread a "region" to work on
 
-    int tile_count_x = 2;
-    int tile_count_y = 2;
-
-    int tile_w = GRAFIKA_SCREEN_WIDTH / tile_count_x;
-    int tile_h = GRAFIKA_SCREEN_HEIGHT / tile_count_y;
-
-    tile_w = ((tile_w + 3) / 4) * 4; // rouding up to nearest 4
-
-    for (int32_t tile_y = 0; tile_y < tile_count_y; tile_y++)
+    // TODO : isnt this always consistent too?
+    for (int32_t tile = 0; tile < (TILE_COUNT_X * TILE_COUNT_Y); tile++)
     {
-        for (int32_t tile_x = 0; tile_x < tile_count_x; tile_x++)
-        {
-            int render_region[4];
-            render_region[0] = (tile_x * tile_w);
-            render_region[2] = (render_region[0] + tile_w);
-
-            if (tile_x == (tile_count_x - 1))
-            {
-                render_region[2] = GRAFIKA_SCREEN_WIDTH; // clip to max screen width
-            }
-
-            render_region[1] = (tile_y * tile_h);
-            render_region[3] = (render_region[1] + tile_h);
-
-            if (tile_y == (tile_count_y - 1))
-            {
-                render_region[3] = GRAFIKA_SCREEN_HEIGHT; // clip to max screen height
-            }
-
-            struct raster_job_data *rd = ma_push_struct(&tmp_arena, struct raster_job_data);
-
-            // LOG("Region : %d, %d, %d, %d\n", render_region[0], render_region[1],
-            //     render_region[2], render_region[3]);
-
-            rd->region[0] = render_region[0];
-            rd->region[1] = render_region[1];
-            rd->region[2] = render_region[2];
-            rd->region[3] = render_region[3];
-
-            rd->triangle_count = obj.num_f_rows;
-
-            rd->triangle_list = (struct triangle *)tmp_arena.base;
-
-            job_submit((struct job){.arguments = rd, .function = raster_job});
-
-            // raster_job(rd);
-        }
+        job_submit((struct job){.arguments = &raster_state.job_data[tile], .function = raster_job});
     }
 
     jobs_complete_all_work();
@@ -450,7 +472,8 @@ void draw_object(struct arena *arena)
 void draw_onexit(void)
 {
     tex_destroy(&raster_state.tex);
-    // raster_state.obj       // cleaned up by arena
+    // raster_state.obj             // cleaned up by arena
+    // raster_state.triangles       // cleaned up by arena
 
     jobs_shutdown();
 }
