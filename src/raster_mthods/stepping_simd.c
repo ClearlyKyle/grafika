@@ -152,8 +152,9 @@ static void draw_triangle(const struct triangle t)
     __m128 mm_tex_w = _mm_set1_ps((float)tex_w - 1);
     __m128 mm_tex_h = _mm_set1_ps((float)tex_h - 1);
 
-    __m128i mmi_tex_w   = _mm_set1_epi32(tex_w);
-    __m128i mmi_tex_bpp = _mm_set1_epi32(tex_bpp);
+    __m128i mmi_tex_w = _mm_set1_epi32(tex_w);
+    //__m128i mmi_tex_bpp = _mm_set1_epi32(tex_bpp);
+    ASSERT(tex_bpp == 4, "Texture bpp must be 4\n");
 
     const __m128i shuffle_mask = _mm_setr_epi8(2, 1, 0, -1,   // texel0 (B, G, R, A)
                                                6, 5, 4, -1,   // texel1
@@ -226,11 +227,13 @@ static void draw_triangle(const struct triangle t)
             pixV = _mm_max_ps(_mm_min_ps(pixV, mm_1), mm_0);
             pixV = _mm_mul_ps(pixV, mm_tex_h);
 
-            // (U + tex.width * V) * tex.bpp
-            __m128i tex_offset = _mm_mullo_epi32(_mm_add_epi32(
-                                                     _mm_cvtps_epi32(pixU),
-                                                     _mm_mullo_epi32(_mm_cvtps_epi32(pixV), mmi_tex_w)),
-                                                 mmi_tex_bpp);
+            __m128i mm_vw       = _mm_mullo_epi32(_mm_cvtps_epi32(pixV), mmi_tex_w);
+            __m128i mm_u_add_vw = _mm_add_epi32(_mm_cvtps_epi32(pixU), mm_vw);
+#if 1
+            __m128i tex_offset = _mm_slli_epi32(mm_u_add_vw, 2); // multiply each element by 4
+#else
+            __m128i tex_offset = _mm_mullo_epi32(mm_u_add_vw, mmi_tex_bpp);
+#endif
 
 #if 0
             // const int32_t *offsets = (const int32_t *)&tex_offset;
