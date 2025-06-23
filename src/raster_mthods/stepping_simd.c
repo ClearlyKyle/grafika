@@ -202,11 +202,11 @@ static void draw_triangle(const struct triangle t)
             float       *depth_location = &depth_buffer[pixel_index];
             const __m128 current_depth  = _mm_load_ps(&rend.depth_buffer[pixel_index]);
 
-            const __m128 depth_test = _mm_cmple_ps(z, current_depth);
+            const __m128 depth_test_result = _mm_cmple_ps(z, current_depth);
 
-            if (_mm_movemask_ps(depth_test) == 0) continue;
+            if (_mm_movemask_ps(depth_test_result) == 0) continue;
 
-            const __m128 write_mask = _mm_and_ps(depth_test, edge_test_result);
+            const __m128 write_mask = _mm_and_ps(depth_test_result, edge_test_result);
             __m128       blended    = _mm_blendv_ps(current_depth, z, write_mask);
 
             _mm_store_ps(depth_location, blended);
