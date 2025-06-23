@@ -20,13 +20,13 @@ struct matrix raster_state = {0};
 // use this to precompute the tie braker edge conditions, use the E value before looping through the pixels
 static inline bool tie_breaker_ab_test(const vec3 E)
 {
-    return (E[0] > 0.0f) || (E[0] == 0.0f && E[1] >= 0.0f);
+    return (E[0] < 0.0f) || (E[0] == 0.0f && E[1] <= 0.0f);
 }
 
 // apply tie-breaking rules on shared vertices in order to avoid double-shading fragments
 static inline bool edge_tie_breaker(const float edge_value, const bool ab_test_result)
 {
-    return (edge_value > 0.0f) || (edge_value == 0.0f && ab_test_result);
+    return (edge_value < 0.0f) || (edge_value == 0.0f && ab_test_result);
 }
 
 static inline float interpolate_values(vec3 little_f_values, vec3 attribute)
@@ -34,9 +34,35 @@ static inline float interpolate_values(vec3 little_f_values, vec3 attribute)
     return v3_dot(little_f_values, attribute);
 }
 
+static void draw_AABB_outline(int AABB[4], uint32_t colour)
+{
+    for (int x = AABB[0]; x <= AABB[2]; ++x)
+    {
+        grafika_setpixel((uint32_t)x, (uint32_t)AABB[1], colour); // top
+        grafika_setpixel((uint32_t)x, (uint32_t)AABB[3], colour); // bottom
+    }
+
+    for (int y = AABB[1]; y <= AABB[3]; ++y)
+    {
+        grafika_setpixel((uint32_t)AABB[0], (uint32_t)y, colour); // left
+        grafika_setpixel((uint32_t)AABB[2], (uint32_t)y, colour); // right
+    }
+}
+
 static void draw_triangle(const struct triangle t)
 {
-    // convert to clip space
+    // > Local space (or object space, loaded from OBJ file)
+    //      + Model Matrix
+    // > World space
+    //      + View Matrix
+    // > View space
+    //      + Projection Matrix
+    // > Clip space
+
+    // we can first multiply together all the matricies and jump straight from "local space"
+    // directly to "clip space"
+
+    // "local space" to "clip space"
     vec4 clip_space[3] = {0};
     for (int i = 0; i < 3; ++i)
     {
@@ -44,21 +70,36 @@ static void draw_triangle(const struct triangle t)
         m4_mul_v4(raster_state.MVP, pos, clip_space[i]);
 
         // clipping
-        if (clip_space[i][0] < -clip_space[i][3] || clip_space[i][0] > clip_space[i][3] ||
-            clip_space[i][1] < -clip_space[i][3] || clip_space[i][1] > clip_space[i][3] ||
-            clip_space[i][2] < -clip_space[i][3] || clip_space[i][2] > clip_space[i][3])
-        {
-            return; // triangle is outside
-        }
+        // -w ≤ x ≤ w
+        // -w ≤ y ≤ w
+        // -w ≤ z ≤ w
+        // if (clip_space[i][0] < -clip_space[i][3] || clip_space[i][0] > clip_space[i][3] ||
+        //    clip_space[i][1] < -clip_space[i][3] || clip_space[i][1] > clip_space[i][3] ||
+        //    clip_space[i][2] < -clip_space[i][3] || clip_space[i][2] > clip_space[i][3])
+        //{
+        //    return; // triangle is outside
+        //}
     }
 
-    vec4        screen_space[3] = {0};
-    const float half_width      = 0.5f * GRAFIKA_SCREEN_WIDTH;
-    const float half_heigh      = 0.5f * GRAFIKA_SCREEN_HEIGHT;
+    // after clipping has taken place, our x, y, z values in the range of [-w, w]
+    // NOTE : normally here, we would perform "perspective-divison" (x/w, y/w, z/w) to get
+    //  them into "ndc space" which is the range [-1, 1]
+
+    // instead, in this "matrix method", we avoid the perspective division
+
+    // so what is going on here?
+    // normally, after perspective division, we convert from ndc to screen space.
+    // that is : ndc [-1, 1] -> screen space [0, width|height]
+    // we do this by doing the following
+    //     screen_space.x = (ndc.x + 1.0f) * 0.5f * GRAFIKA_SCREEN_WIDTH;
+    //     screen_space.y = (ndc.y + 1.0f) * 0.5f * GRAFIKA_SCREEN_HEIGHT;
+    // instead we are going directly from clip space into screen space
+
+    vec4 screen_space[3];
     for (int i = 0; i < 3; ++i)
     {
-        screen_space[i][0] = clip_space[i][0] * half_width + clip_space[i][3] * half_width;
-        screen_space[i][1] = clip_space[i][1] * half_heigh + clip_space[i][3] * half_heigh;
+        screen_space[i][0] = GRAFIKA_SCREEN_WIDTH * (clip_space[i][0] + clip_space[i][3]) * 0.5f;
+        screen_space[i][1] = GRAFIKA_SCREEN_HEIGHT * (clip_space[i][3] - clip_space[i][1]) * 0.5f;
         screen_space[i][2] = clip_space[i][2];
         screen_space[i][3] = clip_space[i][3];
     }
@@ -78,32 +119,34 @@ static void draw_triangle(const struct triangle t)
 
     const float detM = (c0 * screen_space[0][3]) + (c1 * screen_space[1][3]) + (c2 * screen_space[2][3]);
 
-    // the sign of the determinant gives the orientation of the triangle: a counterclockwise order gives a positive determinant
-    if (detM >= 0.0f)
-        return;
+    // The sign of the determinant gives
+    // the orientation of the triangle: a CCW order gives a positive determinant
+    // if (detM >= 0.0f) return; // reject CCW triangles
+    if (detM < 0.0f) return; // reject CW triangles
 
     // set up edge functions (this is A = adj(M))
     vec3 E0 = {a0, b0, c0};
     vec3 E1 = {a1, b1, c1};
     vec3 E2 = {a2, b2, c2};
 
-    // projection : projected = vert / vert.w
-    vec3 proj[3] = {0};
-    for (int i = 0; i < 3; i++)
+    vec3 bounds[3];
+    for (int i = 0; i < 3; ++i)
     {
-        proj[i][0] = screen_space[i][0] / screen_space[i][3];
-        proj[i][1] = screen_space[i][1] / screen_space[i][3];
-        proj[i][2] = screen_space[i][2] / screen_space[i][3];
+        bounds[i][0] = screen_space[i][0] / screen_space[i][3];
+        bounds[i][1] = screen_space[i][1] / screen_space[i][3];
     }
 
     // calculate bounding rectangle
     int AABB[4] = {0};
-    AABB_make(proj, AABB);
+    AABB_make(bounds, AABB);
+
+    // draw_AABB_outline(AABB, 0x00FF00FF);
+    // LOG("AABB : (%d, %d) to (%d, %d)\n", AABB[0], AABB[1], AABB[2], AABB[3]);
 
     // evaluaate edge equation at first tile origin
-    const float edge_func_0 = (E0[0] * (float)AABB[0]) + (E0[1] * (float)AABB[1]) + E0[2];
-    const float edge_func_1 = (E1[0] * (float)AABB[0]) + (E1[1] * (float)AABB[1]) + E1[2];
-    const float edge_func_2 = (E2[0] * (float)AABB[0]) + (E2[1] * (float)AABB[1]) + E2[2];
+    const float edge_func_origin_0 = (E0[0] * (float)AABB[0]) + (E0[1] * (float)AABB[1]) + E0[2];
+    const float edge_func_origin_1 = (E1[0] * (float)AABB[0]) + (E1[1] * (float)AABB[1]) + E1[2];
+    const float edge_func_origin_2 = (E2[0] * (float)AABB[0]) + (E2[1] * (float)AABB[1]) + E2[2];
 
     // pre compute some tie breaker test results
     const bool pre_comp_tie_E0 = tie_breaker_ab_test(E0);
@@ -131,9 +174,9 @@ static void draw_triangle(const struct triangle t)
 
             // evaluate edge functions at current fragment
             // E(x + s, y + t) = E(x, y) + sa + tb,
-            const float eval_edge_func_0 = edge_func_0 + ((E0[0] * (float)step_x) + (E0[1] * (float)step_y));
-            const float eval_edge_func_1 = edge_func_1 + ((E1[0] * (float)step_x) + (E1[1] * (float)step_y));
-            const float eval_edge_func_2 = edge_func_2 + ((E2[0] * (float)step_x) + (E2[1] * (float)step_y));
+            const float eval_edge_func_0 = edge_func_origin_0 + ((E0[0] * (float)(step_x)) + (E0[1] * (float)(step_y)));
+            const float eval_edge_func_1 = edge_func_origin_1 + ((E1[0] * (float)(step_x)) + (E1[1] * (float)(step_y)));
+            const float eval_edge_func_2 = edge_func_origin_2 + ((E2[0] * (float)(step_x)) + (E2[1] * (float)(step_y)));
 
             // check if the current point is inside a traingle using Tie breaker rules
             if (edge_tie_breaker(eval_edge_func_0, pre_comp_tie_E0)) continue;
@@ -212,20 +255,20 @@ void draw_object(struct arena *arena)
             {
                 struct vertindices indices = obj_indices[i * 3 + j];
 
-                const int pos_index = indices.v_idx;
-                const int tex_index = indices.vt_idx;
+                const int pos_index = 3 * indices.v_idx;
+                const int tex_index = 2 * indices.vt_idx;
 
-#if 0
+#if 1
                 const size_t store_index = j; // CCW triangles
 #else
                 const size_t store_index = 2 - j; // CW triangles (which blender uses)
 #endif
-                t.pos[store_index][0] = obj_pos[3 * pos_index + 0];
-                t.pos[store_index][1] = obj_pos[3 * pos_index + 1];
-                t.pos[store_index][2] = obj_pos[3 * pos_index + 2];
+                t.pos[store_index][0] = obj_pos[pos_index + 0];
+                t.pos[store_index][1] = obj_pos[pos_index + 1];
+                t.pos[store_index][2] = obj_pos[pos_index + 2];
 
-                t.tex[store_index][0] = obj_tex[2 * tex_index + 0];
-                t.tex[store_index][1] = obj_tex[2 * tex_index + 1];
+                t.tex[store_index][0] = obj_tex[tex_index + 0];
+                t.tex[store_index][1] = obj_tex[tex_index + 1];
             }
 
             draw_triangle(t);
