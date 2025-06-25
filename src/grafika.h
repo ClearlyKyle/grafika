@@ -11,10 +11,10 @@
 #include "SDL2/SDL_image.h"
 
 #ifndef GRAFIKA_SCREEN_WIDTH
-    #define GRAFIKA_SCREEN_WIDTH (512)
+#define GRAFIKA_SCREEN_WIDTH (512)
 #endif
 #ifndef GRAFIKA_SCREEN_HEIGHT
-    #define GRAFIKA_SCREEN_HEIGHT (512)
+#define GRAFIKA_SCREEN_HEIGHT (512)
 #endif
 
 struct grafika
@@ -36,8 +36,8 @@ static inline void grafika_present(void)
 
 static inline void grafika_setpixel(uint32_t x, uint32_t y, uint32_t colour)
 {
-    ASSERT(y <= GRAFIKA_SCREEN_WIDTH, "y - %u out of bounds\n", y);
-    ASSERT(x <= GRAFIKA_SCREEN_HEIGHT, "x - %u out of bounds\n", x);
+    ASSERT(y < GRAFIKA_SCREEN_HEIGHT, "y - %u out of bounds\n", y);
+    ASSERT(x < GRAFIKA_SCREEN_WIDTH, "x - %u out of bounds\n", x);
 
 #if IS_POWER_OF_2(GRAFIKA_SCREEN_WIDTH)
     rend.pixels[(y << 9) + x] = colour; // why 9? 1 << 9 == 512, y << 9 == y * 512
