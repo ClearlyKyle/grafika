@@ -5,9 +5,9 @@
 #include "utils.h"
 
 #ifdef _MSC_VER
-    #include <intrin.h> // For MSVC intrinsic functions
+#include <intrin.h> // For MSVC intrinsic functions
 #else
-    #include <windows.h>
+#include <windows.h>
 #endif
 
 //
@@ -74,8 +74,8 @@ struct debug_snapshot
     uint64_t timing;
 };
 
-#define DEBUG_FRAME_COLLECTION_COUNT (16)   // how many frames to collect for
-#define DEBUG_MAX_RECORDS            (16)   // each one is a different "TIMED_BLOCK_BEGIN"
+#define DEBUG_FRAME_COLLECTION_COUNT (16)    // how many frames to collect for
+#define DEBUG_MAX_RECORDS            (16)    // each one is a different "TIMED_BLOCK_BEGIN"
 #define DEBUG_MAX_EVENTS             (65535) // each one is when a "BEGIN" or "END" block is called
 
 struct debug_table
@@ -121,28 +121,28 @@ void debug_render_info(void);
 #define TOKEN_PASTE2(x, y) TOKEN_PASTE(x, y)
 
 #ifdef BENCH
-    // __COUNTER__ + 1, the first timed block will be __COUNTER__ == 0, so if we return 0 from debug_timed_block_begin,
-    // the for loop will not be ran
-    #define TIMED_BLOCK_NAMED(name)                                                                                    \
-        for (int TOKEN_PASTE2(counter, __LINE__) = debug_timed_block_begin(__COUNTER__ + 1, __FILE__, __LINE__, name); \
-             TOKEN_PASTE2(counter, __LINE__);                                                                          \
-             TOKEN_PASTE2(counter, __LINE__) = debug_timed_block_end(TOKEN_PASTE2(counter, __LINE__), __rdtsc()))
+// __COUNTER__ + 1, the first timed block will be __COUNTER__ == 0, so if we return 0 from debug_timed_block_begin,
+// the for loop will not be ran
+#define TIMED_BLOCK_NAMED(name)                                                                                    \
+    for (int TOKEN_PASTE2(counter, __LINE__) = debug_timed_block_begin(__COUNTER__ + 1, __FILE__, __LINE__, name); \
+         TOKEN_PASTE2(counter, __LINE__);                                                                          \
+         TOKEN_PASTE2(counter, __LINE__) = debug_timed_block_end(TOKEN_PASTE2(counter, __LINE__), __rdtsc()))
 
-    #define TIMED_BLOCK_BEGIN(name) \
-        const int _tbb_counter_##name = debug_timed_block_begin(__COUNTER__ + 1, __FILE__, __LINE__, #name)
+#define TIMED_BLOCK_BEGIN(name) \
+    const int _tbb_counter_##name = debug_timed_block_begin(__COUNTER__ + 1, __FILE__, __LINE__, #name)
 
-    #define TIMED_BLOCK_END(name) \
-        debug_timed_block_end(_tbb_counter_##name, __rdtsc())
+#define TIMED_BLOCK_END(name) \
+    debug_timed_block_end(_tbb_counter_##name, __rdtsc())
 
-    // #define TIMED_FUNCTION(func, ...)
-    //     TIMED_BLOCK_BEGIN(func);
-    //     func(__VA_ARGS__);
-    //     TIMED_BLOCK_END(func);
+// #define TIMED_FUNCTION(func, ...)
+//     TIMED_BLOCK_BEGIN(func);
+//     func(__VA_ARGS__);
+//     TIMED_BLOCK_END(func);
 #else
-    #define TIMED_BLOCK_NAMED(name)
-    #define TIMED_BLOCK_BEGIN(name)
-    #define TIMED_BLOCK_END(name)
-    #define TIMED_FUNCTION(func, ...)
+#define TIMED_BLOCK_NAMED(name)
+#define TIMED_BLOCK_BEGIN(name)
+#define TIMED_BLOCK_END(name)
+#define TIMED_FUNCTION(func, ...)
 #endif
 
 #endif // __BENCH_H__

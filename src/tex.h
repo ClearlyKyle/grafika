@@ -6,17 +6,15 @@
 #include "utils.h"
 #include "SDL2/SDL_image.h"
 
-typedef struct tex
+struct tex
 {
-    int            w, h, bpp;
-    unsigned char *data;
     SDL_Surface   *surface;
-} tex_t;
+    unsigned char *data;
+    int            w, h, bpp;
+};
 
 static void _flip_surface(SDL_Surface *surface)
 {
-    SDL_LockSurface(surface);
-
 #if 0
     const int pitch = surface->pitch; // row size
 
@@ -45,12 +43,11 @@ static void _flip_surface(SDL_Surface *surface)
 
     for (int i = 0; i < surface->h / 2; ++i)
     {
-        // Get pointers to the two rows to swap
+        // pointers to the two rows to swap
         char *row1 = pixels + i * pitch;
         char *row2 = pixels + (surface->h - i - 1) * pitch;
 
-        // Swap rows using SSE2 intrinsics
-        for (int j = 0; j < pitch; j += 16) // Assuming 16 bytes (128 bits) can be loaded and stored at once
+        for (int j = 0; j < pitch; j += 16) // assuming 16 bytes (128 bits) can be loaded and stored at once
         {
             __m128i xmm_row1 = _mm_load_si128((__m128i *)(row1 + j));
             __m128i xmm_row2 = _mm_load_si128((__m128i *)(row2 + j));
@@ -59,18 +56,16 @@ static void _flip_surface(SDL_Surface *surface)
         }
     }
 #endif
-
-    SDL_UnlockSurface(surface);
 }
 
-tex_t tex_load(const char *file_path)
+struct tex tex_load(const char *file_path)
 {
-    tex_t t = {0};
+    struct tex t;
 
     SDL_Surface *surface = IMG_Load(file_path);
     ASSERT(surface, "Failed to load image\n\t|%s|\n", file_path);
 
-    //_flip_surface(surface);
+    _flip_surface(surface);
 
     t.surface = surface;
     t.h       = surface->h;
@@ -78,17 +73,17 @@ tex_t tex_load(const char *file_path)
     t.bpp     = surface->format->BytesPerPixel;
     t.data    = surface->pixels;
 
-    LOG("IMAGE bpp(%d) w(%d) h(%d)\t%s\n", t.bpp, t.w, t.h, file_path);
+    LOG("IMAGE LOADED bpp(%d) w(%d) h(%d) %s\n", t.bpp, t.w, t.h, file_path);
 
     return t;
 }
 
-void tex_destroy(tex_t *t)
+void tex_destroy(struct tex *t)
 {
     ASSERT(t, "tex_destroy - texture is not valid\n");
 
-    SDL_FreeSurface(t->surface), t->surface = NULL;
-    *t = (tex_t){0};
+    if (t->surface) SDL_FreeSurface(t->surface);
+    *t = (struct tex){0};
 }
 
 #endif // __TEX_H__

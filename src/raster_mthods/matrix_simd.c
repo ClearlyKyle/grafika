@@ -5,7 +5,7 @@ struct matrix_simd
     mat4       model;
     mat4       MVP;
     vec3       cam_pos;
-    tex_t      tex;
+    struct tex tex;
     struct obj obj;
     float     *transformed_vertices;
 };

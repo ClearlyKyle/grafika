@@ -7,11 +7,11 @@
 #include <stdbool.h>
 
 #ifndef NUM_OF_THREADS // including main thread
-    #define NUM_OF_THREADS (4)
+#define NUM_OF_THREADS (4)
 #endif
 
 #ifndef MAX_NUMBER_OF_JOBS
-    #define MAX_NUMBER_OF_JOBS (1024)
+#define MAX_NUMBER_OF_JOBS (1024)
 #endif
 
 struct job
