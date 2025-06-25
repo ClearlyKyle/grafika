@@ -82,7 +82,7 @@ CFLAGS_RELEASE += $(addprefix -I, $(INC_DIRS))
 SRC_DIR := src#
 BIN_DIR := bin#
 
-MAIN_TARGETS := main terrain
+MAIN_TARGETS := main terry
 
 all: $(addprefix $(BIN_DIR)/,$(MAIN_TARGETS:=.exe))
 
