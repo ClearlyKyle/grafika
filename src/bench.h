@@ -76,7 +76,7 @@ struct debug_snapshot
 
 #define DEBUG_FRAME_COLLECTION_COUNT (16)   // how many frames to collect for
 #define DEBUG_MAX_RECORDS            (16)   // each one is a different "TIMED_BLOCK_BEGIN"
-#define DEBUG_MAX_EVENTS             (4096) // each one is when a "BEGIN" or "END" block is called
+#define DEBUG_MAX_EVENTS             (65535) // each one is when a "BEGIN" or "END" block is called
 
 struct debug_table
 {
