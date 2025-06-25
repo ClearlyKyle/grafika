@@ -5,19 +5,17 @@
 
 #include "bench.h"
 
-#if 0
-    #define LH_COORDINATE_SYSTEM
-#else
-    #define RH_COORDINATE_SYSTEM // Blender uses RH
+#if !defined(LH_COORDINATE_SYSTEM) || defined(RH_COORDINATE_SYSTEM)
+#define LH_COORDINATE_SYSTEM /* default */
 #endif
 
 // GCC have funny inline rules
 #if defined(_MSC_VER)
-    #define MATEMATIKA_INLINE __forceinline
+#define MATEMATIKA_INLINE __forceinline
 #elif defined(__GNUC__) || defined(__clang__)
-    #define MATEMATIKA_INLINE static inline __attribute((always_inline))
+#define MATEMATIKA_INLINE static inline __attribute((always_inline))
 #else
-    #error "Unsupported compiler"
+#error "Unsupported compiler"
 #endif
 
 #define max(a, b) (((a) > (b)) ? (a) : (b))
@@ -32,6 +30,11 @@ typedef float vec3[3];
 typedef float vec4[4];
 typedef vec4  mat4[4];
 typedef vec3  mat3[3];
+
+#define MAT4_IDENTITY {{1.0f, 0.0f, 0.0f, 0.0f}, \
+                       {0.0f, 1.0f, 0.0f, 0.0f}, \
+                       {0.0f, 0.0f, 1.0f, 0.0f}, \
+                       {0.0f, 0.0f, 0.0f, 1.0f}}
 
 MATEMATIKA_INLINE
 void v2_copy(vec2 dst, const vec2 src)
@@ -156,6 +159,15 @@ MATEMATIKA_INLINE
 float v3_edgefunc(const vec3 a, const vec3 b, const vec3 c)
 {
     return (c[0] - a[0]) * (b[1] - a[1]) - (c[1] - a[1]) * (b[0] - a[0]);
+}
+
+MATEMATIKA_INLINE
+void v4_copy(vec4 dst, const vec4 src)
+{
+    dst[0] = src[0];
+    dst[1] = src[1];
+    dst[2] = src[2];
+    dst[3] = src[3];
 }
 
 // mat3 functions ---------------------------------------------------------------------------------
@@ -552,7 +564,6 @@ void m4_make_roty(mat4 matrix, float angle)
 MATEMATIKA_INLINE
 void AABB_make(vec3 pos[3], int AABB[4])
 {
-    // get the bounding box of the triangle, setting pos[0] as starting values
     float fminX = pos[0][0];
     float fminY = pos[0][1];
     float fmaxX = pos[0][0];
@@ -560,27 +571,19 @@ void AABB_make(vec3 pos[3], int AABB[4])
 
     for (int i = 1; i < 3; ++i)
     {
-        // update minimum and maximum values for x and y
-        // const float x = pos[i][0];
-        // const float y = pos[i][1];
+        float x = pos[i][0];
+        float y = pos[i][1];
 
-        // if (x < fminX) fminX = x;
-        // if (x > fmaxX) fmaxX = x;
-
-        // if (y < fminY) fminY = y;
-        // if (y > fmaxY) fmaxY = y;
-
-        if (pos[i][0] < fminX) fminX = pos[i][0];
-        if (pos[i][0] > fmaxX) fmaxX = pos[i][0];
-
-        if (pos[i][1] < fminY) fminY = pos[i][1];
-        if (pos[i][1] > fmaxY) fmaxY = pos[i][1];
+        if (x < fminX) fminX = x;
+        if (x > fmaxX) fmaxX = x;
+        if (y < fminY) fminY = y;
+        if (y > fmaxY) fmaxY = y;
     }
 
-    AABB[0] = max(0, min((int)fminX, GRAFIKA_SCREEN_WIDTH - 1));  // minX
-    AABB[1] = max(0, min((int)fminY, GRAFIKA_SCREEN_HEIGHT - 1)); // minY
-    AABB[2] = max(0, min((int)fmaxX, GRAFIKA_SCREEN_WIDTH - 1));  // maxX
-    AABB[3] = max(0, min((int)fmaxY, GRAFIKA_SCREEN_HEIGHT - 1)); // maxY
+    AABB[0] = max(0, min((int)floorf(fminX), GRAFIKA_SCREEN_WIDTH - 1));
+    AABB[1] = max(0, min((int)floorf(fminY), GRAFIKA_SCREEN_HEIGHT - 1));
+    AABB[2] = max(0, min((int)ceilf(fmaxX), GRAFIKA_SCREEN_WIDTH - 1));
+    AABB[3] = max(0, min((int)ceilf(fmaxY), GRAFIKA_SCREEN_HEIGHT - 1));
 }
 
 #endif // __MATEMATIKA_H__
