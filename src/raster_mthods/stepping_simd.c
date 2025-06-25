@@ -162,7 +162,6 @@ static void draw_triangle(const struct triangle t)
                                                14, 13, 12, -1 // texel3
     );
 
-    TIMED_BLOCK_BEGIN(raster_pixels);
     for (int y  = AABB[1]; y <= AABB[3]; ++y,
              E0 = _mm_add_ps(E0, B0_inc),
              E1 = _mm_add_ps(E1, B1_inc),
@@ -311,7 +310,6 @@ static void draw_triangle(const struct triangle t)
 #endif
         }
     }
-    TIMED_BLOCK_END(raster_pixels);
 }
 
 void draw_onstart(struct arena *arena)

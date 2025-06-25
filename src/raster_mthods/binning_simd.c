@@ -89,15 +89,23 @@ static inline void tile_add_data(uint32_t tile_index, struct triangle_ref ref)
 {
     struct tile *tile = &tile_array[tile_index];
 
-    uint32_t index = tile->triangle_count++;
+    uint32_t index;
+#pragma omp atomic capture
+    index = tile->triangle_count++;
+
     ASSERT(index < MAX_TRIANGLES_PER_TILE, "Too many triangles in this bin\n");
 
     tile->triangles[index] = ref;
 
-    if (tile->has_been_queued) return;
-
-    tile->has_been_queued                = true;
-    tiles_with_bins[tiles_queue_index++] = tile_index;
+    // prevent double-queueing tiles
+#pragma omp critical(tiles_queue_lock)
+    {
+        if (!tile->has_been_queued)
+        {
+            tile->has_been_queued                = true;
+            tiles_with_bins[tiles_queue_index++] = tile_index;
+        }
+    }
 }
 
 static bool _triangle_clipping(vec4 pos[3])
@@ -732,6 +740,7 @@ void draw_object(struct arena *arena)
 
     // pass triangles through our "Vertex Shader"
     float *transformed_vertices = arena_alloc_aligned(&tmp_arena, sizeof(vec4) * obj.num_pos, 16);
+#pragma omp parallel for
     for (size_t i = 0; i < obj.num_pos; i++)
     {
         vec4 vertex = {obj_pos[i * 3 + 0],
@@ -747,6 +756,7 @@ void draw_object(struct arena *arena)
     const size_t          triangle_count = obj.num_f_rows;
     struct triangle_data *triangles      = ma_push_size(&tmp_arena, sizeof(struct triangle_data) * triangle_count);
 
+#pragma omp parallel for
     for (size_t i = 0; i < triangle_count; ++i)
     {
         for (size_t j = 0; j < 3; ++j)
@@ -782,7 +792,8 @@ void draw_object(struct arena *arena)
     memset(tiles_with_bins, -1, sizeof(tiles_with_bins));
     tiles_queue_index = 0;
 
-    // now we have all the triangles, in CLIP SPACE
+// now we have all the triangles, in CLIP SPACE
+#pragma omp parallel for
     for (size_t i = 0; i < triangle_count; i++)
     {
         struct triangle_data *t = triangles + i;
@@ -808,7 +819,7 @@ void draw_object(struct arena *arena)
     // NOTE : here we have collected all "tiles" are in contact with a triangle,
     //          we could go a step further and basically find all pixels that are
     //          touching a triangle, but for now, I am not doing this
-
+#pragma omp parallel for
     for (uint32_t i = 0; i < tiles_queue_index; i++)
     {
         uint32_t tile_lookup_index = tiles_with_bins[i];

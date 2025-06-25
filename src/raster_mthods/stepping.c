@@ -166,7 +166,7 @@ void draw_object(struct arena *arena)
 {
     UNUSED(arena);
 
-    // #pragma omp parallel
+#pragma omp parallel
     {
         const struct obj obj = raster_state.obj;
 
@@ -174,7 +174,7 @@ void draw_object(struct arena *arena)
         float              *obj_tex     = obj.texs;
         struct vertindices *obj_indices = obj.indices;
 
-        // #pragma omp for
+#pragma omp for
         for (size_t i = 0; i < obj.num_f_rows; ++i)
         {
             struct triangle t = {0};

@@ -85,15 +85,22 @@ static inline void tile_add_data(uint32_t tile_index, struct triangle_ref ref)
 {
     struct tile *tile = &tile_array[tile_index];
 
+#pragma omp atomic capture
     uint32_t index = tile->triangle_count++;
+
     ASSERT(index < MAX_TRIANGLES_PER_TILE, "Too many triangles in this bin\n");
 
     tile->triangles[index] = ref;
 
-    if (tile->has_been_queued) return;
-
-    tile->has_been_queued                = true;
-    tiles_with_bins[tiles_queue_index++] = tile_index;
+    // prevent double-queueing tiles
+#pragma omp critical(tiles_queue_lock)
+    {
+        if (!tile->has_been_queued)
+        {
+            tile->has_been_queued                = true;
+            tiles_with_bins[tiles_queue_index++] = tile_index;
+        }
+    }
 }
 
 static bool _triangle_clipping(vec4 pos[3])
@@ -790,6 +797,7 @@ void draw_object(struct arena *arena)
 
     // pass triangles through our "Vertex Shader"
     float *transformed_vertices = arena_alloc_aligned(&tmp_arena, sizeof(vec4) * obj.num_pos, 16);
+#pragma omp parallel for
     for (size_t i = 0; i < obj.num_pos; i++)
     {
         size_t pos_index = 3 * i;
@@ -898,6 +906,7 @@ void draw_object(struct arena *arena)
 
     TIMED_BLOCK_BEGIN(binner);
 
+#pragma omp parallel for
     for (size_t i = 0; i < triangle_count; ++i)
     {
         struct triangle_data *t = triangles + i;
@@ -962,7 +971,7 @@ void draw_object(struct arena *arena)
     // NOTE : here we have collected all "tiles" are in contact with a triangle,
     //          we could go a step further and basically find all pixels that are
     //          touching a triangle, but for now, I am not doing this
-
+#pragma omp parallel for
     for (uint32_t i = 0; i < tiles_queue_index; i++)
     {
         uint32_t tile_lookup_index = tiles_with_bins[i];
@@ -980,6 +989,7 @@ void draw_object(struct arena *arena)
         _tile_index_to_coords(tile_lookup_index, &tile_x, &tile_y);
         // LOG("Tile coords : %u, %u\n", tile_x, tile_y);
 
+        // #pragma omp parallel for
         for (uint32_t b = 0; b < tile_data.triangle_count; b++)
         {
             struct triangle_ref t = tile_data.triangles[b];

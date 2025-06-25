@@ -14,23 +14,23 @@ struct matrix_simd raster_state = {0};
 
 // TODO : where does this come from?
 #ifdef LH_COORDINATE_SYSTEM
-    #define VP_MATRIX                                                                                  \
-        (mat4)                                                                                         \
-        {                                                                                              \
-            {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.0f, 0.0f, 0.0f},                                    \
-                {0.0f, -0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 0.0f},                              \
-                {0.0f, 0.0f, 1.0f, 0.0f},                                                              \
-                {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 1.0f}, \
-        }
+#define VP_MATRIX                                                                                  \
+    (mat4)                                                                                         \
+    {                                                                                              \
+        {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.0f, 0.0f, 0.0f},                                    \
+            {0.0f, -0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 0.0f},                              \
+            {0.0f, 0.0f, 1.0f, 0.0f},                                                              \
+            {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 1.0f}, \
+    }
 #else
-    #define VP_MATRIX                                                                                  \
-        (mat4)                                                                                         \
-        {                                                                                              \
-            {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.0f, 0.0f, 0.0f},                                    \
-                {0.0f, 0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 0.0f},                               \
-                {0.0f, 0.0f, 1.0f, 0.0f},                                                              \
-                {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 1.0f}, \
-        }
+#define VP_MATRIX                                                                                  \
+    (mat4)                                                                                         \
+    {                                                                                              \
+        {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.0f, 0.0f, 0.0f},                                    \
+            {0.0f, 0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 0.0f},                               \
+            {0.0f, 0.0f, 1.0f, 0.0f},                                                              \
+            {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 1.0f}, \
+    }
 #endif
 
 static inline __m128 interpolate_values(const __m128 F[3], const __m128 V[3])
@@ -79,29 +79,6 @@ static void draw_triangle(vec4 verts[3], vec2 tex_coords[3])
     // calculate bounding rectangle
     int AABB[4] = {0};
     AABB_make(bounds, AABB);
-
-    // get the bounding box of the triangle
-    // float bb_minX = bounds[0][0];
-    // float bb_minY = bounds[0][1];
-    // float bb_maxX = bounds[0][0];
-    // float bb_maxY = bounds[0][1];
-
-    // for (int i = 1; i < 3; ++i)
-    //{
-    //     if (verts[i][0] < bb_minX) bb_minX = verts[i][0];
-    //     if (verts[i][1] < bb_minY) bb_minY = verts[i][1];
-    //     if (verts[i][0] > bb_maxX) bb_maxX = verts[i][0];
-    //     if (verts[i][1] > bb_maxY) bb_maxY = verts[i][1];
-    // }
-
-    // const int screen_width_minus_one  = GRAFIKA_SCREEN_WIDTH - 1;
-    // const int screen_height_minus_one = GRAFIKA_SCREEN_HEIGHT - 1;
-
-    //// clamp values to screen space
-    // int minX = max(0, min((int)bb_minX, screen_width_minus_one));
-    // int minY = max(0, min((int)bb_minY, screen_height_minus_one));
-    // int maxX = max(0, min((int)bb_maxX, screen_width_minus_one));
-    // int maxY = max(0, min((int)bb_maxY, screen_height_minus_one));
 
     // align to multiples of 4 for better simd'ing
     AABB[0] = AABB[0] - (AABB[0] & (4 - 1)); // p & (a - 1) = p % a
@@ -339,7 +316,7 @@ void draw_object(struct arena *arena)
     const struct obj obj = raster_state.obj;
     float           *pos = obj.pos;
 
-#pragma omp parallel
+    // #pragma omp parallel
     {
         //  transform all verts to screen space
 #pragma omp parallel for
@@ -356,7 +333,7 @@ void draw_object(struct arena *arena)
         float              *obj_tex     = obj.texs;
         struct vertindices *obj_indices = obj.indices;
 
-        // #pragma omp for
+#pragma omp parallel for
         for (size_t i = 0; i < obj.num_f_rows; ++i)
         {
             vec4 vertices[3]   = {0};
