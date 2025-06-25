@@ -1,5 +1,3 @@
-
-
 // https://tayfunkayhan.wordpress.com/2019/07/26/chasing-triangles-in-a-tile-based-rasterizer/
 
 // 1 - Triangles are evenly spread between threads
@@ -66,26 +64,6 @@ struct binning
 
 struct binning raster_state = {0};
 
-#ifdef LH_COORDINATE_SYSTEM
-    #define VP_MATRIX                                                                                  \
-        (mat4)                                                                                         \
-        {                                                                                              \
-            {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.0f, 0.0f, 0.0f},                                    \
-                {0.0f, -0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 0.0f},                              \
-                {0.0f, 0.0f, 1.0f, 0.0f},                                                              \
-                {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 1.0f}, \
-        }
-#else
-    #define VP_MATRIX                                                                                  \
-        (mat4)                                                                                         \
-        {                                                                                              \
-            {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.0f, 0.0f, 0.0f},                                    \
-                {0.0f, 0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 0.0f},                               \
-                {0.0f, 0.0f, 1.0f, 0.0f},                                                              \
-                {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 1.0f}, \
-        }
-#endif
-
 static inline bool tie_breaker_ab_test(const vec3 E)
 {
     return (E[0] > 0.0f) || (E[0] == 0.0f && E[1] >= 0.0f);
@@ -101,7 +79,6 @@ static inline bool edge_tie_breaker(const float edge_value, const bool ab_test_r
 static inline float interpolate_values(vec3 little_f_values, vec3 attribute)
 {
     return v3_dot(little_f_values, attribute);
-    // return little_f_values[0] * attribute[0] + little_f_values[1] * attribute[1] + attribute[2];
 }
 
 static inline void tile_add_data(uint32_t tile_index, struct triangle_ref ref)
@@ -119,109 +96,102 @@ static inline void tile_add_data(uint32_t tile_index, struct triangle_ref ref)
     tiles_with_bins[tiles_queue_index++] = tile_index;
 }
 
+static bool _triangle_clipping(vec4 pos[3])
+{
+    enum
+    {
+        PLANE_LEFT   = 1 << 0,
+        PLANE_RIGHT  = 1 << 1,
+        PLANE_BOTTOM = 1 << 2,
+        PLANE_TOP    = 1 << 3,
+        PLANE_NEAR   = 1 << 4,
+        PLANE_FAR    = 1 << 5
+    };
+
+    uint8_t mask0 = 0;
+    if (pos[0][0] < -pos[0][3]) mask0 |= PLANE_LEFT;
+    if (pos[0][0] > pos[0][3]) mask0 |= PLANE_RIGHT;
+    if (pos[0][1] < -pos[0][3]) mask0 |= PLANE_BOTTOM;
+    if (pos[0][1] > pos[0][3]) mask0 |= PLANE_TOP;
+    if (pos[0][2] < 0.0f) mask0 |= PLANE_NEAR;
+    if (pos[0][2] > pos[0][3]) mask0 |= PLANE_FAR;
+
+    uint8_t mask1 = 0;
+    if (pos[1][0] < -pos[1][3]) mask1 |= PLANE_LEFT;
+    if (pos[1][0] > pos[1][3]) mask1 |= PLANE_RIGHT;
+    if (pos[1][1] < -pos[1][3]) mask1 |= PLANE_BOTTOM;
+    if (pos[1][1] > pos[1][3]) mask1 |= PLANE_TOP;
+    if (pos[1][2] < 0.0f) mask1 |= PLANE_NEAR;
+    if (pos[1][2] > pos[1][3]) mask1 |= PLANE_FAR;
+
+    uint8_t mask2 = 0;
+    if (pos[2][0] < -pos[2][3]) mask2 |= PLANE_LEFT;
+    if (pos[2][0] > pos[2][3]) mask2 |= PLANE_RIGHT;
+    if (pos[2][1] < -pos[2][3]) mask2 |= PLANE_BOTTOM;
+    if (pos[2][1] > pos[2][3]) mask2 |= PLANE_TOP;
+    if (pos[2][2] < 0.0f) mask2 |= PLANE_NEAR;
+    if (pos[2][2] > pos[2][3]) mask2 |= PLANE_FAR;
+
+    uint8_t and_mask = mask0 & mask1 & mask2;
+    uint8_t or_mask  = mask0 | mask1 | mask2;
+
+    if (and_mask != 0)
+        return false; // CLIP_OUTSIDE : all vertices outside same plane
+    else if (or_mask == 0)
+        return true; // CLIP_INSIDE : all vertices inside all planes
+    else
+        return true; // CLIP_PARTIAL : partial overlap, needs clipping
+}
+
 #define GRAFIKA_SCREEN_HALF_WIDTH  (0.5f * GRAFIKA_SCREEN_WIDTH)
 #define GRAFIKA_SCREEN_HALF_HEIGHT (0.5f * GRAFIKA_SCREEN_HEIGHT)
 
-static bool _triangle_clipping(vec4 pos[3], struct aabb *aabb)
-{
-    // NOTE : assuming our model will not move out of the screen
-#if 0
-    // compute NDC vertices; confined to 2D because we don't need z here
-    vec2 v0_NDC = {pos[0][0] * w, pos[0][1] / pos[0][3]};
-    vec2 v1_NDC = {pos[1][0] / pos[1][3], pos[1][1] / pos[1][3]};
-    vec2 v2_NDC = {pos[2][0] / pos[2][3], pos[2][1] / pos[2][3]};
-
-    // Transform NDC [-1, 1] -> RASTER [0, {width|height}]
-    vec2 v0_raster = {width * (v0_NDC[0] + 1.f) * 0.5f, height * (v0_NDC[1] + 1.f) * 0.5f};
-    vec2 v1_raster = {width * (v1_NDC[0] + 1.f) * 0.5f, height * (v1_NDC[1] + 1.f) * 0.5f};
-    vec2 v2_raster = {width * (v2_NDC[0] + 1.f) * 0.5f, height * (v2_NDC[1] + 1.f) * 0.5f};
-#elif 0
-    vec2 raster[3];
-    for (size_t i = 0; i < 3; i++)
-    {
-        float w = 1.0f / pos[i][3];
-
-        vec2 NDC = {pos[i][0] * w, pos[i][1] * w};
-
-        raster[i][0] = 0.5f * width * (NDC[0] + 1.0f);
-        raster[i][1] = 0.5f * height * (NDC[1] + 1.0f);
-    }
-#else
-    vec2 raster[3];
-
-    float w      = 1.0f / pos[0][3];
-    raster[0][0] = GRAFIKA_SCREEN_HALF_WIDTH * ((pos[0][0] * w) + 1.0f);
-    raster[0][1] = GRAFIKA_SCREEN_HALF_HEIGHT * ((pos[0][1] * w) + 1.0f);
-
-    w            = 1.0f / pos[1][3];
-    raster[1][0] = GRAFIKA_SCREEN_HALF_WIDTH * ((pos[1][0] * w) + 1.0f);
-    raster[1][1] = GRAFIKA_SCREEN_HALF_HEIGHT * ((pos[1][1] * w) + 1.0f);
-
-    w            = 1.0f / pos[2][3];
-    raster[2][0] = GRAFIKA_SCREEN_HALF_WIDTH * ((pos[2][0] * w) + 1.0f);
-    raster[2][1] = GRAFIKA_SCREEN_HALF_HEIGHT * ((pos[2][1] * w) + 1.0f);
-
-#endif
-
-    float xmin = min(raster[0][0], min(raster[1][0], raster[2][0]));
-    float xmax = max(raster[0][0], max(raster[1][0], raster[2][0]));
-
-    float ymin = min(raster[0][1], min(raster[1][1], raster[2][1]));
-    float ymax = max(raster[0][1], max(raster[1][1], raster[2][1]));
-
-    aabb->minx = xmin;
-    aabb->miny = ymin;
-    aabb->maxx = xmax;
-    aabb->maxy = ymax;
-
-    if ((aabb->minx >= GRAFIKA_SCREEN_WIDTH) ||
-        (aabb->maxx < 0.0f) ||
-        (aabb->miny >= GRAFIKA_SCREEN_HEIGHT) ||
-        (aabb->maxx < 0.0f))
-    {
-        return false; // triangle exceeds screen bounds, discard it
-    }
-    else
-    {
-        // clamp to screen bounds
-        aabb->minx = max(0.0f, aabb->minx);
-        aabb->maxx = min(GRAFIKA_SCREEN_WIDTH, aabb->maxx);
-        aabb->miny = max(0.0f, aabb->miny);
-        aabb->maxy = min(GRAFIKA_SCREEN_HEIGHT, aabb->maxy);
-
-        return true; // no clipping
-    }
-}
-
-static bool _triangle_setup_and_cull(vec4 pos[3], vec3 E[3], vec3 Z)
+static bool _triangle_setup_and_cull(vec4 pos[3], vec3 E[3], vec3 Z, struct aabb *aabb)
 {
     // first, transform clip-space (x, y, z, w) vertices to device-space 2D homogeneous coordinates (x, y, w)
     vec4 homo[3];
     for (size_t i = 0; i < 3; i++)
     {
         homo[i][0] = (pos[i][0] + pos[i][3]) * GRAFIKA_SCREEN_HALF_WIDTH;
-        homo[i][1] = (pos[i][1] + pos[i][3]) * GRAFIKA_SCREEN_HALF_HEIGHT;
+        homo[i][1] = (pos[i][3] - pos[i][1]) * GRAFIKA_SCREEN_HALF_HEIGHT; // origin Top Left
+        // homo[i][1] = (pos[i][3] + pos[i][1]) * GRAFIKA_SCREEN_HALF_HEIGHT; // origin Bottom Left
         homo[i][2] = pos[i][2];
         homo[i][3] = pos[i][3];
     }
 
     // from the paper, calculate out "A" matrix
-    float a0 = (homo[2][1] * homo[1][3]) - (homo[1][1] * homo[2][3]);
-    float a1 = (homo[0][1] * homo[2][3]) - (homo[2][1] * homo[0][3]);
-    float a2 = (homo[1][1] * homo[0][3]) - (homo[0][1] * homo[1][3]);
+    const float a0 = (homo[1][1] * homo[2][3]) - (homo[2][1] * homo[1][3]);
+    const float a1 = (homo[2][1] * homo[0][3]) - (homo[0][1] * homo[2][3]);
+    const float a2 = (homo[0][1] * homo[1][3]) - (homo[1][1] * homo[0][3]);
 
-    float b0 = (homo[1][0] * homo[2][3]) - (homo[2][0] * homo[1][3]);
-    float b1 = (homo[2][0] * homo[0][3]) - (homo[0][0] * homo[2][3]);
-    float b2 = (homo[0][0] * homo[1][3]) - (homo[1][0] * homo[0][3]);
+    const float b0 = (homo[2][0] * homo[1][3]) - (homo[1][0] * homo[2][3]);
+    const float b1 = (homo[0][0] * homo[2][3]) - (homo[2][0] * homo[0][3]);
+    const float b2 = (homo[1][0] * homo[0][3]) - (homo[0][0] * homo[1][3]);
 
-    float c0 = (homo[2][0] * homo[1][1]) - (homo[1][0] * homo[2][1]);
-    float c1 = (homo[0][0] * homo[2][1]) - (homo[2][0] * homo[0][1]);
-    float c2 = (homo[1][0] * homo[0][1]) - (homo[0][0] * homo[1][1]);
+    const float c0 = (homo[1][0] * homo[2][1]) - (homo[2][0] * homo[1][1]);
+    const float c1 = (homo[2][0] * homo[0][1]) - (homo[0][0] * homo[2][1]);
+    const float c2 = (homo[0][0] * homo[1][1]) - (homo[1][0] * homo[0][1]);
 
     // det(M) <= 0  -> back-facing triangle
     float detM = (c0 * homo[0][3]) + (c1 * homo[1][3]) + (c2 * homo[2][3]);
 
-    if (detM <= 0.0f) return false;
+    if (detM <= 0.0f) return false; // reject CW triangles
+
+    vec2 bounds[3];
+    for (int i = 0; i < 3; ++i)
+    {
+        bounds[i][0] = homo[i][0] / homo[i][3];
+        bounds[i][1] = homo[i][1] / homo[i][3];
+    }
+
+    const float screen_width  = GRAFIKA_SCREEN_WIDTH - 1;
+    const float screen_height = GRAFIKA_SCREEN_HEIGHT - 1;
+
+    aabb->minx = max(0.0f, min(bounds[0][0], min(bounds[1][0], bounds[2][0])));
+    aabb->maxx = min(screen_width, max(bounds[0][0], max(bounds[1][0], bounds[2][0])));
+
+    aabb->miny = max(0.0f, min(bounds[0][1], min(bounds[1][1], bounds[2][1])));
+    aabb->maxy = min(screen_height, max(bounds[0][1], max(bounds[1][1], bounds[2][1])));
 
     // set up edge functions (this is A = adj(M))
     v3_copy(E[0], (vec3){a0, b0, c0});
@@ -231,7 +201,6 @@ static bool _triangle_setup_and_cull(vec4 pos[3], vec3 E[3], vec3 Z)
     v3_copy(Z, (vec3){(pos[0][2] - pos[2][2]), (pos[1][2] - pos[2][2]), pos[2][2]});
 
     return true;
-    // return (detM > 0.0f);
 }
 
 static inline uint32_t _get_tile_index(uint32_t tile_x, uint32_t tile_y)
@@ -246,28 +215,18 @@ static inline void _tile_index_to_coords(uint32_t index, uint32_t *tile_x, uint3
     *tile_x = index % RENDER_NUM_TILE_X;
 }
 
-void draw_aabb_outline(struct aabb *box)
+static void draw_aabb_outline(struct aabb *box)
 {
-    uint32_t minx = (uint32_t)box->minx;
-    uint32_t miny = (uint32_t)box->miny;
-    uint32_t maxx = (uint32_t)box->maxx;
-    uint32_t maxy = (uint32_t)box->maxy;
-
-    uint32_t width  = maxx - minx;
-    uint32_t height = maxy - miny;
-
-    for (uint32_t i = 0; i < (width > height ? width : height); i++)
+    for (int x = (int)box->minx; x <= (int)box->maxx; ++x)
     {
-        if (i < width)
-        {
-            grafika_setpixel(minx + i, miny, 0xFF00FF00);     // top
-            grafika_setpixel(minx + i, maxy - 1, 0xFF00FF00); // bottom
-        }
-        if (i < height)
-        {
-            grafika_setpixel(minx, miny + i, 0xFF00FF00);     // left
-            grafika_setpixel(maxx - 1, miny + i, 0xFF00FF00); // right
-        }
+        grafika_setpixel((uint32_t)x, (uint32_t)box->miny, 0xFF00FF00); // Top
+        grafika_setpixel((uint32_t)x, (uint32_t)box->maxy, 0xFF00FF00); // Bottom
+    }
+
+    for (int y = (int)box->miny; y <= (int)box->maxy; ++y)
+    {
+        grafika_setpixel((uint32_t)box->minx, (uint32_t)y, 0xFF00FF00); // Left
+        grafika_setpixel((uint32_t)box->maxx, (uint32_t)y, 0xFF00FF00); // Right
     }
 }
 
@@ -304,6 +263,8 @@ static inline uint8_t _compute_corner_index(const float x, const float y)
 // stepped binner
 static void _binner(uint32_t tri_index, struct aabb *aabb, vec3 E[3])
 {
+    ASSERT(IS_POWER_OF_2(RENDER_TILE_SIZE), "RENDER_TILE_SIZE must be a power of 2!\n");
+
     uint32_t min_tile_x = (uint32_t)(aabb->minx * RENDER_TILE_SIZE_INV);
     uint32_t min_tile_y = (uint32_t)(aabb->miny * RENDER_TILE_SIZE_INV);
 
@@ -361,7 +322,6 @@ static void _binner(uint32_t tri_index, struct aabb *aabb, vec3 E[3])
     const float _ta_contants1 = (nrm_E1[0] * (tile_corner_offsets[TA_corner1][0])) + (nrm_E1[1] * (tile_corner_offsets[TA_corner1][1]));
     const float _ta_contants2 = (nrm_E2[0] * (tile_corner_offsets[TA_corner2][0])) + (nrm_E2[1] * (tile_corner_offsets[TA_corner2][1]));
 
-    // TODO : these loop index names
     for (uint32_t tile_y = min_tile_y, y = 0; tile_y < max_tile_y; tile_y++, y++)
     {
         const float y_step0 = step0_y * (float)y + TR_edge_func_start_0;
@@ -397,12 +357,12 @@ static void _binner(uint32_t tri_index, struct aabb *aabb, vec3 E[3])
 
             if ((TA_edge_func_0 >= 0.0f) && (TA_edge_func_1 >= 0.0f) && (TA_edge_func_2 >= 0.0f))
             {
-                //_draw_square_filled(tx * RENDER_TILE_SIZE, ty * RENDER_TILE_SIZE, RENDER_TILE_SIZE, 0xFF00FF00);
+                //_draw_square_outline(tile_x * RENDER_TILE_SIZE, tile_y * RENDER_TILE_SIZE, RENDER_TILE_SIZE, 0x00FFFFFF);
                 ref.type = RASTER_FULL_TILE;
             }
             else
             {
-                //_draw_square_outline(tx * RENDER_TILE_SIZE, ty * RENDER_TILE_SIZE, RENDER_TILE_SIZE, 0xFF00FF00);
+                //_draw_square_outline(tile_x * RENDER_TILE_SIZE, tile_y * RENDER_TILE_SIZE, RENDER_TILE_SIZE, 0xFF00FF00);
                 ref.type = RASTER_PARTIAL_TILE;
             }
             tile_add_data(tile_index, ref);
@@ -412,16 +372,13 @@ static void _binner(uint32_t tri_index, struct aabb *aabb, vec3 E[3])
 #else
 static void _binner(uint32_t tri_index, struct aabb *aabb, vec3 E[3])
 {
-    // LOG("RENDER_TILE_SIZE  : %u\n", RENDER_TILE_SIZE);
-    // LOG("RENDER_NUM_TILE_X : %u\n", RENDER_NUM_TILE_X);
-    // LOG("RENDER_NUM_TILE_Y : %u\n", RENDER_NUM_TILE_Y);
     ASSERT((aabb->minx >= 0.0f) && (aabb->maxx >= 0.0f) && (aabb->miny >= 0.0f) && (aabb->maxy >= 0.0f), "clipper must have clamped aabb to screen extents!");
     ASSERT((aabb->minx <= aabb->maxx) && (aabb->miny <= aabb->maxy), "clipper must have clamped aabb to screen extents!");
 
     // given the tile size and window dimensions, we compute the min/max tile range
     // that intersects the triangles AABB
 
-    // draw_aabb_outline(aabb);
+    ASSERT(IS_POWER_OF_2(RENDER_TILE_SIZE), "RENDER_TILE_SIZE must be a power of 2!\n");
 
     uint32_t min_tile_x = (uint32_t)(aabb->minx * RENDER_TILE_SIZE_INV);
     uint32_t min_tile_y = (uint32_t)(aabb->miny * RENDER_TILE_SIZE_INV);
@@ -493,7 +450,7 @@ static void _binner(uint32_t tri_index, struct aabb *aabb, vec3 E[3])
             {
                 // Trivial Rejected - tile is completely outside of the triangle
                 // LOG("TR Tile %u\n", _get_tile_index(tx, ty));
-                //_draw_square_outline(tx * RENDER_TILE_SIZE, ty * RENDER_TILE_SIZE, RENDER_TILE_SIZE, 0xFF0000FF);
+                //_draw_square_outline(x * RENDER_TILE_SIZE, y * RENDER_TILE_SIZE, RENDER_TILE_SIZE, 0xFF0000FF);
                 continue;
             }
 
@@ -512,14 +469,14 @@ static void _binner(uint32_t tri_index, struct aabb *aabb, vec3 E[3])
                 // Trivial Accepted - tile is completely inside of the triangle
 
                 // LOG("TA Tile %u\n", _get_tile_index(tx, ty));
-                //_draw_square_filled(x * RENDER_TILE_SIZE, y * RENDER_TILE_SIZE, RENDER_TILE_SIZE, 0xFFFF00FF);
+                //_draw_square_outline(x * RENDER_TILE_SIZE, y * RENDER_TILE_SIZE, RENDER_TILE_SIZE, 0xFFFF00FF);
                 ref.type = RASTER_FULL_TILE;
             }
             else
             {
                 // Overlap - tile is partially covered by the triangle, bin the triangle for the tile
                 // LOG("O Tile %u\n", _get_tile_index(tx, ty));
-                //_draw_square_filled(x * RENDER_TILE_SIZE, y * RENDER_TILE_SIZE, RENDER_TILE_SIZE, 0xFF0000FF);
+                //_draw_square_outline(x * RENDER_TILE_SIZE, y * RENDER_TILE_SIZE, RENDER_TILE_SIZE, 0xFF0000FF);
                 ref.type = RASTER_PARTIAL_TILE;
             }
             tile_add_data(tile_index, ref);
@@ -528,7 +485,7 @@ static void _binner(uint32_t tri_index, struct aabb *aabb, vec3 E[3])
 }
 #endif
 
-static void _shade_plain_full_tile(uint32_t pos_x, uint32_t pos_y, vec3 E0, vec3 E1, vec3 E2, vec3 Z)
+static void _shade_plain_full_tile(uint32_t pos_x, uint32_t pos_y, vec3 E0, vec3 E1, vec3 E2, vec2 t0, vec2 t1, vec2 t2, vec3 Z)
 {
     const uint32_t start_x = pos_x * RENDER_TILE_SIZE;
     const uint32_t end_x   = start_x + RENDER_TILE_SIZE;
@@ -547,6 +504,15 @@ static void _shade_plain_full_tile(uint32_t pos_x, uint32_t pos_y, vec3 E0, vec3
     float edge_func_start_0 = (E0[0] * (float)start_x) + (E0[1] * (float)start_y) + E0[2];
     float edge_func_start_1 = (E1[0] * (float)start_x) + (E1[1] * (float)start_y) + E1[2];
     float edge_func_start_2 = (E2[0] * (float)start_x) + (E2[1] * (float)start_y) + E2[2];
+
+    // pre fetch tex data
+    const int      tex_w    = raster_state.tex.w;
+    const int      tex_h    = raster_state.tex.h;
+    const int      tex_bpp  = raster_state.tex.bpp;
+    unsigned char *tex_data = raster_state.tex.data;
+
+    vec3 u_values = {t0[0], t1[0], t2[0]};
+    vec3 v_values = {t0[1], t1[1], t2[1]};
 
     float *depth_buffer = rend.depth_buffer;
 
@@ -587,7 +553,23 @@ static void _shade_plain_full_tile(uint32_t pos_x, uint32_t pos_y, vec3 E0, vec3
             if (new_z >= *old_z) continue;
             *old_z = new_z;
 
-            grafika_setpixel(px, py, 0xFF00FF00);
+            // interpolate texture coordinates
+            float u = interpolate_values(littlef_values, u_values);
+            float v = interpolate_values(littlef_values, v_values);
+
+            u = SDL_clamp(u, 0.0f, 1.0f);
+            v = SDL_clamp(v, 0.0f, 1.0f);
+
+            u *= (float)tex_w - 1;
+            v *= (float)tex_h - 1;
+
+            unsigned char *tex_colour = tex_data + (((int)u + tex_w * (int)v) * tex_bpp);
+
+            uint32_t pixel_colour = ((uint32_t)tex_colour[0] << 16) |
+                                    ((uint32_t)tex_colour[1] << 8) |
+                                    (uint32_t)tex_colour[2];
+
+            grafika_setpixel(px, py, pixel_colour);
         }
     }
 }
@@ -810,12 +792,9 @@ void draw_object(struct arena *arena)
     float *transformed_vertices = arena_alloc_aligned(&tmp_arena, sizeof(vec4) * obj.num_pos, 16);
     for (size_t i = 0; i < obj.num_pos; i++)
     {
-        vec4 vertex = {obj_pos[i * 3 + 0],
-                       obj_pos[i * 3 + 1],
-                       obj_pos[i * 3 + 2],
-                       1.0f};
+        size_t pos_index = 3 * i;
+        vec4   vertex    = {obj_pos[pos_index + 0], obj_pos[pos_index + 1], obj_pos[pos_index + 2], 1.0f};
 
-        // vertex pos * MVP
         m4_mul_v4(raster_state.MVP, vertex, &transformed_vertices[i * 4]);
     }
 
@@ -832,11 +811,11 @@ void draw_object(struct arena *arena)
 
             const int pos_index = indices.v_idx;
             const int tex_index = indices.vt_idx;
-    #if 0
+#if 0
             const size_t store_index = j; // CCW triangles
-    #else
+#else
             const size_t store_index = (2 - j); // CW triangles (which blender uses)
-    #endif
+#endif
             float *p = transformed_vertices + 4 * pos_index;
             float *t = obj_tex + 2 * tex_index;
 
@@ -928,26 +907,27 @@ void draw_object(struct arena *arena)
         struct vertindices indices1 = obj_indices[i * 3 + 1];
         struct vertindices indices2 = obj_indices[i * 3 + 2];
 
-        float *p1    = transformed_vertices + 4 * indices0.v_idx;
-        t->pos[2][0] = p1[0];
-        t->pos[2][1] = p1[1];
-        t->pos[2][2] = p1[2];
-        t->pos[2][3] = p1[3];
+#ifdef CCW_TRIANGLES
+        float *p1    = transformed_vertices + (4 * indices0.v_idx);
+        t->pos[0][0] = p1[0];
+        t->pos[0][1] = p1[1];
+        t->pos[0][2] = p1[2];
+        t->pos[0][3] = p1[3];
 
-        float *p2    = transformed_vertices + 4 * indices1.v_idx;
+        float *p2    = transformed_vertices + (4 * indices1.v_idx);
         t->pos[1][0] = p2[0];
         t->pos[1][1] = p2[1];
         t->pos[1][2] = p2[2];
         t->pos[1][3] = p2[3];
 
-        float *p3    = transformed_vertices + 4 * indices2.v_idx;
-        t->pos[0][0] = p3[0];
-        t->pos[0][1] = p3[1];
-        t->pos[0][2] = p3[2];
-        t->pos[0][3] = p3[3];
-
+        float *p3    = transformed_vertices + (4 * indices2.v_idx);
+        t->pos[2][0] = p3[0];
+        t->pos[2][1] = p3[1];
+        t->pos[2][2] = p3[2];
+        t->pos[2][3] = p3[3];
+#endif
         // CLIPPER
-        if (!_triangle_clipping(t->pos, &aabb))
+        if (!_triangle_clipping(t->pos))
         {
             // LOG("Triangle %u CLIPPED\n", i);
             //  LOG("v0 : %f, %f, %f\n", v0[0], v0[1], v0[2]);
@@ -958,7 +938,7 @@ void draw_object(struct arena *arena)
         }
 
         // TRIANGLE SETUP & CULL
-        if (!_triangle_setup_and_cull(t->pos, t->E, t->Z))
+        if (!_triangle_setup_and_cull(t->pos, t->E, t->Z, &aabb))
         {
             // LOG("Triangle %u CULLED\n", i);
             //  LOG("v0 : %f, %f, %f\n", v0[0], v0[1], v0[2]);
@@ -968,9 +948,11 @@ void draw_object(struct arena *arena)
             continue; // triangle culled, move to next triangle
         }
 
-        v2_copy(t->tex[0], &obj_tex[indices2.vt_idx * 2]);
+#ifdef CCW_TRIANGLES
+        v2_copy(t->tex[0], &obj_tex[indices0.vt_idx * 2]);
         v2_copy(t->tex[1], &obj_tex[indices1.vt_idx * 2]);
-        v2_copy(t->tex[2], &obj_tex[indices0.vt_idx * 2]);
+        v2_copy(t->tex[2], &obj_tex[indices2.vt_idx * 2]);
+#endif
 
         _binner((uint32_t)i, &aabb, t->E);
     }
@@ -1008,7 +990,7 @@ void draw_object(struct arena *arena)
             {
                 case RASTER_FULL_TILE:
                 {
-                    _shade_plain_full_tile(tile_x, tile_y, td->E[0], td->E[1], td->E[2], td->Z);
+                    _shade_plain_full_tile(tile_x, tile_y, td->E[0], td->E[1], td->E[2], td->tex[0], td->tex[1], td->tex[2], td->Z);
                     break;
                 }
                 case RASTER_PARTIAL_TILE:
