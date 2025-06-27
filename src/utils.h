@@ -33,27 +33,27 @@ static inline void _log_printf(const char *level, const char *fmt, ...)
 }
 
 #ifndef NDEBUG
-    #define LOG(...)  _log_printf("[LOG]", __VA_ARGS__)
-    #define LOGW(...) _log_printf("[WAR]", __VA_ARGS__)
-    #define LOGE(...) _log_printf("[ERR]", __VA_ARGS__)
+#define LOG(...)  _log_printf("[LOG]", __VA_ARGS__)
+#define LOGW(...) _log_printf("[WAR]", __VA_ARGS__)
+#define LOGE(...) _log_printf("[ERR]", __VA_ARGS__)
 #else
-    #define LOG(...)
-    #define LOGW(...)
-    #define LOGE(...)
+#define LOG(...)
+#define LOGW(...)
+#define LOGE(...)
 #endif
 
 //
 // ASSERT
 //
 #ifndef NDEBUG
-    #define ASSERT(EXP, ...)  \
-        if (!(EXP))           \
-        {                     \
-            LOG(__VA_ARGS__); \
-            assert(EXP);      \
-        }
+#define ASSERT(EXP, ...)  \
+    if (!(EXP))           \
+    {                     \
+        LOG(__VA_ARGS__); \
+        assert(EXP);      \
+    }
 #else
-    #define ASSERT(EXP, ...)
+#define ASSERT(EXP, ...)
 #endif
 
 //
