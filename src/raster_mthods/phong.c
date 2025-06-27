@@ -7,41 +7,46 @@
 
 struct phong
 {
-    mat3 nrm_matrix;
+    mat4       model;
+    mat4       MVP;
+    vec3       cam_pos;
+    struct tex tex;
+    struct obj obj;
+
+    mat3   nrm_matrix;
+    float *triangles;
 };
 
-static struct phong phong_data           = {0};
-struct rasterstate  raster_state         = {0};
-static float       *transformed_vertices = NULL;
+struct phong raster_state = {0};
 
 #ifdef LH_COORDINATE_SYSTEM
-    #define VP_MATRIX                                                                                  \
-        (mat4)                                                                                         \
-        {                                                                                              \
-            {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.0f, 0.0f, 0.0f},                                    \
-                {0.0f, -0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 0.0f},                              \
-                {0.0f, 0.0f, 1.0f, 0.0f},                                                              \
-                {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 1.0f}, \
-        }
+#define VP_MATRIX                                                                                  \
+    (mat4)                                                                                         \
+    {                                                                                              \
+        {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.0f, 0.0f, 0.0f},                                    \
+            {0.0f, -0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 0.0f},                              \
+            {0.0f, 0.0f, 1.0f, 0.0f},                                                              \
+            {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 1.0f}, \
+    }
 #else
-    #define VP_MATRIX                                                                                  \
-        (mat4)                                                                                         \
-        {                                                                                              \
-            {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.0f, 0.0f, 0.0f},                                    \
-                {0.0f, 0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 0.0f},                               \
-                {0.0f, 0.0f, 1.0f, 0.0f},                                                              \
-                {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 1.0f}, \
-        }
+#define VP_MATRIX                                                                                  \
+    (mat4)                                                                                         \
+    {                                                                                              \
+        {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.0f, 0.0f, 0.0f},                                    \
+            {0.0f, 0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 0.0f},                               \
+            {0.0f, 0.0f, 1.0f, 0.0f},                                                              \
+            {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 1.0f}, \
+    }
 #endif
 
 static inline bool tie_breaker_ab_test(const vec3 E)
 {
-    return (E[0] > 0.0f) || (E[0] == 0.0f && E[1] >= 0.0f);
+    return (E[0] < 0.0f) || (E[0] == 0.0f && E[1] <= 0.0f);
 }
 
 static inline bool edge_tie_breaker(const float edge_value, const bool ab_test_result)
 {
-    return (edge_value > 0.0f) || (edge_value == 0.0f && ab_test_result);
+    return (edge_value < 0.0f) || (edge_value == 0.0f && ab_test_result);
 }
 
 static inline float interpolate_values(vec3 little_f_values, vec3 attribute)
@@ -130,9 +135,8 @@ static void draw_triangle(vec4 trans[3], vec3 raw[3], vec3 nrm[3], vec2 texcoord
 
     const float detM = (c0 * trans[0][3]) + (c1 * trans[1][3]) + (c2 * trans[2][3]);
 
-    // the sign of the determinant gives the orientation of the triangle: a counterclockwise order gives a positive determinant
-    if (detM >= 0.0f)
-        return;
+    // if (detM >= 0.0f) return; // reject CCW triangles
+    if (detM < 0.0f) return; // reject CW triangles
 
     // set up edge functions (this is A = adj(M))
     vec3 E0 = {a0, b0, c0};
@@ -152,9 +156,9 @@ static void draw_triangle(vec4 trans[3], vec3 raw[3], vec3 nrm[3], vec2 texcoord
     // the model matrix having the ability to scale and scew the model, and our
     // normal do not like this
     vec3 new_nrm[3] = {0};
-    m3_mul_v3(phong_data.nrm_matrix, nrm[0], new_nrm[0]);
-    m3_mul_v3(phong_data.nrm_matrix, nrm[1], new_nrm[1]);
-    m3_mul_v3(phong_data.nrm_matrix, nrm[2], new_nrm[2]);
+    m3_mul_v3(raster_state.nrm_matrix, nrm[0], new_nrm[0]);
+    m3_mul_v3(raster_state.nrm_matrix, nrm[1], new_nrm[1]);
+    m3_mul_v3(raster_state.nrm_matrix, nrm[2], new_nrm[2]);
 
     vec3 nrm_x = {new_nrm[0][0], new_nrm[1][0], new_nrm[2][0]};
     vec3 nrm_y = {new_nrm[0][1], new_nrm[1][1], new_nrm[2][1]};
@@ -272,32 +276,41 @@ static void draw_triangle(vec4 trans[3], vec3 raw[3], vec3 nrm[3], vec2 texcoord
 
             uint32_t pixel_colour = ((uint32_t)red << 16) | ((uint32_t)gre << 8) | (uint32_t)blu;
 
-            grafika_setpixel(x, y, pixel_colour);
+            grafika_setpixel((uint32_t)x, (uint32_t)y, pixel_colour);
         }
     }
 }
 
+void draw_onstart(struct arena *arena)
+{
+    struct obj obj = raster_state.obj;
+
+    ASSERT(obj.mats, "Object must have atleast a diffuse texture\n");
+    raster_state.tex = tex_load(obj.mats[0].map_Kd);
+
+    raster_state.triangles = arena_alloc_aligned(arena, sizeof(vec4) * obj.num_f_rows, 16);
+}
+
 void draw_object(struct arena *arena)
 {
+    UNUSED(arena);
+
     mat4 cum_matrix = {0};
     m4_mul_m4(VP_MATRIX, raster_state.MVP, cum_matrix);
 
     mat3 tmp = {0};
     m3_from_m4(raster_state.model, tmp);
     m3_inv(tmp, tmp);
-    m3_transpose(tmp, phong_data.nrm_matrix);
-
-    const struct obj obj = raster_state.obj;
-
-    if (!transformed_vertices)
-        transformed_vertices = arena_alloc_aligned(arena, sizeof(vec4) * obj.num_pos, 16);
+    m3_transpose(tmp, raster_state.nrm_matrix);
 
 #pragma omp parallel
     {
-        float         *tran_pos    = transformed_vertices;
-        float         *obj_pos     = obj.pos;
-        float         *obj_nrm     = obj.norms;
-        float         *obj_tex     = obj.texs;
+        float *tran_pos = raster_state.triangles;
+
+        const struct obj    obj         = raster_state.obj;
+        float              *obj_pos     = obj.pos;
+        float              *obj_nrm     = obj.norms;
+        float              *obj_tex     = obj.texs;
         struct vertindices *obj_indices = obj.indices;
 
 #pragma omp for
@@ -326,11 +339,13 @@ void draw_object(struct arena *arena)
                 const int pos_index = indices.v_idx;
                 const int nrm_index = indices.vn_idx * 3;
                 const int tex_index = indices.vt_idx * 2;
-#if 0
+
+#ifdef CCW_TRIANGLES
                 const size_t store_index = j; // CCW triangles
 #else
                 const size_t store_index = 2 - j; // CW triangles (which blender uses)
 #endif
+
                 float *p              = tran_pos + 4 * pos_index;
                 float *raw_p          = obj_pos + 3 * pos_index;
                 trans[store_index][0] = p[0];
@@ -352,4 +367,12 @@ void draw_object(struct arena *arena)
             draw_triangle(trans, raw, nrm, texcoords);
         }
     }
+}
+
+void draw_onexit(void)
+{
+    tex_destroy(&raster_state.tex);
+
+    // raster_state.obj       // cleaned up by arena
+    // raster_state.triangles // cleaned up by arena
 }
