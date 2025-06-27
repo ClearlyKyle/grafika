@@ -1,3 +1,5 @@
+
+
 #include "common.h"
 
 // Guide
@@ -11,44 +13,49 @@
 
 struct para_map
 {
-    mat3  nrm_matrix;
-    mat3  TBN;
-    tex_t nrm_tex;
-    tex_t disp_tex;
+    mat4       model;
+    mat4       MVP;
+    vec3       cam_pos;
+    struct tex tex;
+    struct obj obj;
+
+    mat3       nrm_matrix;
+    mat3       TBN;
+    struct tex nrm_tex;
+    struct tex disp_tex;
+    float     *triangles;
 };
 
-static struct para_map parallax_mapping_data = {0};
-struct rasterstate     raster_state          = {0};
-static float          *transformed_vertices  = NULL;
+struct para_map raster_state = {0};
 
 #ifdef LH_COORDINATE_SYSTEM
-    #define VP_MATRIX                                                                                  \
-        (mat4)                                                                                         \
-        {                                                                                              \
-            {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.0f, 0.0f, 0.0f},                                    \
-                {0.0f, -0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 0.0f},                              \
-                {0.0f, 0.0f, 1.0f, 0.0f},                                                              \
-                {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 1.0f}, \
-        }
+#define VP_MATRIX                                                                                  \
+    (mat4)                                                                                         \
+    {                                                                                              \
+        {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.0f, 0.0f, 0.0f},                                    \
+            {0.0f, -0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 0.0f},                              \
+            {0.0f, 0.0f, 1.0f, 0.0f},                                                              \
+            {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 1.0f}, \
+    }
 #else
-    #define VP_MATRIX                                                                                  \
-        (mat4)                                                                                         \
-        {                                                                                              \
-            {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.0f, 0.0f, 0.0f},                                    \
-                {0.0f, 0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 0.0f},                               \
-                {0.0f, 0.0f, 1.0f, 0.0f},                                                              \
-                {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 1.0f}, \
-        }
+#define VP_MATRIX                                                                                  \
+    (mat4)                                                                                         \
+    {                                                                                              \
+        {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.0f, 0.0f, 0.0f},                                    \
+            {0.0f, 0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 0.0f},                               \
+            {0.0f, 0.0f, 1.0f, 0.0f},                                                              \
+            {0.5f * (float)GRAFIKA_SCREEN_WIDTH, 0.5f * (float)GRAFIKA_SCREEN_HEIGHT, 0.0f, 1.0f}, \
+    }
 #endif
 
 static inline bool tie_breaker_ab_test(const vec3 E)
 {
-    return (E[0] > 0.0f) || (E[0] == 0.0f && E[1] >= 0.0f);
+    return (E[0] < 0.0f) || (E[0] == 0.0f && E[1] <= 0.0f);
 }
 
 static inline bool edge_tie_breaker(const float edge_value, const bool ab_test_result)
 {
-    return (edge_value > 0.0f) || (edge_value == 0.0f && ab_test_result);
+    return (edge_value < 0.0f) || (edge_value == 0.0f && ab_test_result);
 }
 
 static inline float interpolate_values(vec3 little_f_values, vec3 attribute)
@@ -122,11 +129,11 @@ static void TBN_create(vec3 normal, vec3 raw[3], vec2 tex[3], mat3 ret_TBN)
     tangent[2] = f * (delta_uv2[1] * edge1[2] - delta_uv1[1] * edge2[2]);
 
     vec3 N;
-    m3_mul_v3(parallax_mapping_data.nrm_matrix, normal, N); // transfrom from tangent to normal space
+    m3_mul_v3(raster_state.nrm_matrix, normal, N); // transfrom from tangent to normal space
     v3_norm(N);
 
     vec3 T;
-    m3_mul_v3(parallax_mapping_data.nrm_matrix, tangent, T);
+    m3_mul_v3(raster_state.nrm_matrix, tangent, T);
     v3_norm(T);
 
     // Gram-Schmidt orthogonalize : t = normalize(t - n * dot(n, t))
@@ -166,7 +173,7 @@ static inline float mix(float x, float y, float a)
     return x * (1.0f - a) + y * a;
 }
 
-static inline unsigned char *tex_get_pos(tex_t *t, const float x, const float y)
+static inline unsigned char *tex_get_pos(struct tex *t, const float x, const float y)
 {
 #if 1 /* GL_REPEAT */
     float new_x = x - floorf(x);
@@ -185,7 +192,7 @@ static inline unsigned char *tex_get_pos(tex_t *t, const float x, const float y)
 // Parallax Mapping and Parallax Mapping with offset limiting
 static inline void parallax_mapping(const vec2 tex_coords, const vec3 view_direction, vec2 res)
 {
-    unsigned char *disp_colour    = tex_get_pos(&parallax_mapping_data.disp_tex, tex_coords[0], tex_coords[1]);
+    unsigned char *disp_colour    = tex_get_pos(&raster_state.disp_tex, tex_coords[0], tex_coords[1]);
     const float    initial_height = 1.0f - (float)disp_colour[0] / 255.0f;
 
     // calculate amount of offset for Parallax Mapping
@@ -222,7 +229,7 @@ static inline void steep_parallax_mapping(const vec2 tex_coords, const vec3 view
     vec2 current_texture_coords = {tex_coords[0], tex_coords[1]};
 
     // get first depth from heightmap
-    unsigned char *disp_colour         = tex_get_pos(&parallax_mapping_data.disp_tex, tex_coords[0], tex_coords[1]);
+    unsigned char *disp_colour         = tex_get_pos(&raster_state.disp_tex, tex_coords[0], tex_coords[1]);
     float          height_from_texture = 1.0f - (float)disp_colour[0] / 255.0f;
 
     // while point is above surface
@@ -235,7 +242,7 @@ static inline void steep_parallax_mapping(const vec2 tex_coords, const vec3 view
         current_texture_coords[1] -= dtex[1];
 
         // get new depth from heightmap
-        unsigned char *new_colour = tex_get_pos(&parallax_mapping_data.disp_tex, current_texture_coords[0], current_texture_coords[1]);
+        unsigned char *new_colour = tex_get_pos(&raster_state.disp_tex, current_texture_coords[0], current_texture_coords[1]);
         height_from_texture       = 1.0f - (float)new_colour[0] / 255.0f;
     }
 
@@ -260,7 +267,7 @@ static inline void steep_parallax_mapping(const vec2 tex_coords, const vec3 view
 
         // new depth from heightmap
         // get new depth from heightmap
-        unsigned char *new_colour = tex_get_pos(&parallax_mapping_data.disp_tex, current_texture_coords[0], current_texture_coords[1]);
+        unsigned char *new_colour = tex_get_pos(&raster_state.disp_tex, current_texture_coords[0], current_texture_coords[1]);
         height_from_texture       = 1.0f - (float)new_colour[0] / 255.0f;
 
         // shift along or agains vector V
@@ -285,7 +292,7 @@ static inline void steep_parallax_mapping(const vec2 tex_coords, const vec3 view
     // get height after and before collision for linear interpolation
     float nextH = height_from_texture - current_layer_height;
 
-    disp_colour = tex_get_pos(&parallax_mapping_data.disp_tex, prev_t_coords[0], prev_t_coords[1]);
+    disp_colour = tex_get_pos(&raster_state.disp_tex, prev_t_coords[0], prev_t_coords[1]);
     float prevH = (1.0f - (float)disp_colour[0] / 255.0f) - current_layer_height + layer_height;
 
     // proportions for linear interpolation
@@ -320,8 +327,8 @@ static void draw_triangle(vec4 trans[3], vec3 raw[3], vec3 nrm[3], vec2 texcoord
 
     const float detM = (c0 * trans[0][3]) + (c1 * trans[1][3]) + (c2 * trans[2][3]);
 
-    if (detM >= 0.0f)
-        return;
+    // if (detM >= 0.0f) return; // reject CCW triangles
+    if (detM < 0.0f) return; // reject CW triangles
 
     vec3 E0 = {a0, b0, c0};
     vec3 E1 = {a1, b1, c1};
@@ -431,7 +438,7 @@ static void draw_triangle(vec4 trans[3], vec3 raw[3], vec3 nrm[3], vec2 texcoord
 
             if (u > 1.0f || v > 1.0f || u < 0.0f || v < 0.0f) continue;
 
-            unsigned char *nrm_colour = tex_get_pos(&parallax_mapping_data.nrm_tex, u, v);
+            unsigned char *nrm_colour = tex_get_pos(&raster_state.nrm_tex, u, v);
 
             vec3        frag_nrm;
             const float inv_255 = 1.0f / 255.0f;
@@ -458,13 +465,32 @@ static void draw_triangle(vec4 trans[3], vec3 raw[3], vec3 nrm[3], vec2 texcoord
 
             uint32_t pixel_colour = ((uint32_t)red << 16) | ((uint32_t)gre << 8) | (uint32_t)blu;
 
-            grafika_setpixel(x, y, pixel_colour);
+            grafika_setpixel((uint32_t)x, (uint32_t)y, pixel_colour);
         }
     }
 }
 
+void draw_onstart(struct arena *arena)
+{
+    struct obj obj = raster_state.obj;
+
+    ASSERT(obj.mats, "Object must have a material\n");
+    ASSERT(obj.mats[0].map_Kd, "Object must have a diffuse texture\n");
+    ASSERT(obj.mats[0].map_bump, "Object must have a bump map\n");
+    ASSERT(obj.mats[0].map_bump, "Object must have a bump map\n");
+    ASSERT(obj.mats[0].disp, "Object must have a displacement map\n");
+
+    raster_state.tex      = tex_load(obj.mats[0].map_Kd);
+    raster_state.nrm_tex  = tex_load(obj.mats[0].map_bump);
+    raster_state.disp_tex = tex_load(obj.mats[0].disp);
+
+    raster_state.triangles = arena_alloc_aligned(arena, sizeof(vec4) * obj.num_f_rows, 16);
+}
+
 void draw_object(struct arena *arena)
 {
+    UNUSED(arena);
+
     ASSERT(PHONG_AMBI_AMOUNT >= 0.0f && PHONG_AMBI_AMOUNT <= 1.0f, "Ambient amount should be between 0.0f and 1.0f");
     ASSERT(PHONG_SPEC_AMOUNT >= 0.0f && PHONG_SPEC_AMOUNT <= 1.0f, "Specular amount should be between 0.0f and 1.0f");
     ASSERT(PHONG_SHININESS > 0.0f, "Shininess amount should be > 0.0f");
@@ -475,27 +501,16 @@ void draw_object(struct arena *arena)
     mat4 tmp = {0}, nrm_mat = {0};
     m4_inv(raster_state.model, tmp);
     m4_transpose(tmp, nrm_mat);
-    m3_from_m4(nrm_mat, parallax_mapping_data.nrm_matrix);
-
-    const struct obj obj = raster_state.obj;
-
-    if (!transformed_vertices)
-    {
-        transformed_vertices = arena_alloc_aligned(arena, sizeof(vec4) * obj.num_pos, 16);
-
-        ASSERT(obj.mats[0].map_bump, "No bump map was loaded, check object has such map\n");
-        ASSERT(obj.mats[0].disp, "No displacement map was loaded, check object has such map\n");
-
-        parallax_mapping_data.nrm_tex  = tex_load(obj.mats[0].map_bump);
-        parallax_mapping_data.disp_tex = tex_load(obj.mats[0].disp);
-    }
+    m3_from_m4(nrm_mat, raster_state.nrm_matrix);
 
 #pragma omp parallel
     {
-        float         *tran_pos    = transformed_vertices;
-        float         *obj_pos     = obj.pos;
-        float         *obj_nrm     = obj.norms;
-        float         *obj_tex     = obj.texs;
+        float *tran_pos = raster_state.triangles;
+
+        const struct obj    obj         = raster_state.obj;
+        float              *obj_pos     = obj.pos;
+        float              *obj_nrm     = obj.norms;
+        float              *obj_tex     = obj.texs;
         struct vertindices *obj_indices = obj.indices;
 
 #pragma omp for
@@ -522,11 +537,13 @@ void draw_object(struct arena *arena)
                 const int pos_index = indices.v_idx;
                 const int nrm_index = indices.vn_idx * 3;
                 const int tex_index = indices.vt_idx * 2;
-#if 0
+
+#ifdef CCW_TRIANGLES
                 const size_t store_index = j; // CCW triangles
 #else
                 const size_t store_index = 2 - j; // CW triangles (which blender uses)
 #endif
+
                 float *p              = tran_pos + 4 * pos_index;
                 float *raw_p          = obj_pos + 3 * pos_index;
                 trans[store_index][0] = p[0];
@@ -552,6 +569,10 @@ void draw_object(struct arena *arena)
 
 void draw_onexit(void)
 {
-    tex_destroy(&parallax_mapping_data.nrm_tex);
-    tex_destroy(&parallax_mapping_data.disp_tex);
+    tex_destroy(&raster_state.tex);
+    tex_destroy(&raster_state.nrm_tex);
+    tex_destroy(&raster_state.disp_tex);
+
+    // raster_state.obj       // cleaned up by arena
+    // raster_state.triangles // cleaned up by arena
 }
