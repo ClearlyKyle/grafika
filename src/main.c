@@ -13,6 +13,8 @@
 //          RASTER_LH_COOR_SYSTEM
 
 #define BENCH
+#define CCW_TRIANGLES
+#define LH_COORDINATE_SYSTEM
 
 #include "raster_mthods/edging.c"
 // #include "raster_mthods/stepping.c"
