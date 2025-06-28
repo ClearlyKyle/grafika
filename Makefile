@@ -84,20 +84,19 @@ BIN_DIR := bin#
 
 MAIN_TARGETS := main terry
 
+# include auto-generated dependencies for MAIN_TARGETS only
+-include $(addprefix $(BIN_DIR)/,$(MAIN_TARGETS:=.d))
+
 all: $(addprefix $(BIN_DIR)/,$(MAIN_TARGETS:=.exe))
 
 $(BIN_DIR)/%.exe: $(BIN_DIR)/%.o | $(BIN_DIR)
-	@echo "Linking $@..."
+	@echo "Linking   : $@"
 	@$(CC) -fopenmp $(LDFLAGS) $^ -o $@ $(LIB_LDFLAGS)
 	@echo "Successfully built $@"
 
 $(BIN_DIR)/%.o: $(SRC_DIR)/%.c | $(BIN_DIR)
-	@echo "Compiling main $<..."
-	@mkdir -p $(dir $@)
+	@echo "Compiling : $<"
 	@$(CC) $(CFLAGS) $(LIB_CFLAGS) -MMD -MP -c $< -o $@
-
-# include auto-generated dependencies for MAIN_TARGETS only
--include $(addprefix $(BIN_DIR)/,$(MAIN_TARGETS:=.d))
 
 $(MAIN_TARGETS): %: $(BIN_DIR)/%.exe
 
@@ -106,9 +105,11 @@ $(BIN_DIR):
 
 clean:
 	@rm -rf $(BIN_DIR)
-	@echo "Cleaned build directory"
+	@echo "Cleaned \"$(BIN_DIR)\" directory"
 
 flags:
 	@echo $(CFLAGS)
 
+# stops .o files being deleted when compiling with -fopenmp
+.SECONDARY:
 .PHONY: all clean $(MAIN_TARGETS)
