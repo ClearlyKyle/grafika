@@ -1,5 +1,4 @@
-
-
+#define GRAFIKA_TITLE ("grafika - parallax")
 #include "common.h"
 
 // Guide

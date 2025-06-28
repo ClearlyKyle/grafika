@@ -1,3 +1,4 @@
+#define GRAFIKA_TITLE ("grafika - phong")
 #include "common.h"
 
 #define PHONG_AMBI_AMOUNT (0.2f)   // 0.0f -> 1.0f

@@ -1,3 +1,4 @@
+#define GRAFIKA_TITLE ("grafika - stepping")
 #include "common.h"
 
 struct triangle

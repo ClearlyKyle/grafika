@@ -1,3 +1,4 @@
+#define GRAFIKA_TITLE ("grafika - matrix")
 #include "common.h"
 
 struct triangle
@@ -162,6 +163,7 @@ static void draw_triangle(const struct triangle t)
     vec3 u_values = {t.tex[0][0], t.tex[1][0], t.tex[2][0]};
     vec3 v_values = {t.tex[0][1], t.tex[1][1], t.tex[2][1]};
 
+    // NOTE : do these Z values need to be divided by the W?
     vec3   z_values     = {screen_space[0][2], screen_space[1][2], screen_space[2][2]};
     float *depth_buffer = rend.depth_buffer;
 

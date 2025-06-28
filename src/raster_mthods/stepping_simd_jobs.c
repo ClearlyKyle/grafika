@@ -1,5 +1,5 @@
+#define GRAFIKA_TITLE ("grafika - stepping_simd_jobs")
 #include "common.h"
-
 #define RABOTY_IMPLEMENTATION
 #include "../raboty.h"
 

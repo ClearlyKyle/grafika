@@ -1,3 +1,4 @@
+#define GRAFIKA_TITLE ("grafika - binning_simd")
 #include "common.h"
 
 #define MAX_TRIANGLES_PER_TILE (2048)

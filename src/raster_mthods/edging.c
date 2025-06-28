@@ -1,4 +1,4 @@
-#define GRAFIKA_TITLE ("grafika edging")
+#define GRAFIKA_TITLE ("grafika - edging")
 #include "common.h"
 
 struct triangle

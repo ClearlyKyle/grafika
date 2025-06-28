@@ -6,6 +6,7 @@
 // 3 - Now each tile knows what triangle it interacts with we can raster each tile
 // 4 - we can raster a triangle in small tiles, think 8x8 for AVX SIMD
 
+#define GRAFIKA_TITLE ("grafika - binning")
 #include "common.h"
 
 #define MAX_TRIANGLES_PER_TILE (2048)

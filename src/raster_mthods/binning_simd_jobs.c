@@ -1,3 +1,4 @@
+#define GRAFIKA_TITLE ("grafika - binning_simd_jobs")
 #include "common.h"
 
 #define RABOTY_IMPLEMENTATION

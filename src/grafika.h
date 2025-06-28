@@ -16,6 +16,9 @@
 #ifndef GRAFIKA_SCREEN_HEIGHT
 #define GRAFIKA_SCREEN_HEIGHT (512)
 #endif
+#ifndef GRAFIKA_TITLE
+#define GRAFIKA_TITLE ("grafika")
+#endif
 
 struct grafika
 {
@@ -62,7 +65,7 @@ static void grafika_startup(struct arena *arena)
     if (!(IMG_Init(img_flags) & img_flags))
         LOGE("IMG_Init failed to initialize: %s\n", IMG_GetError()), abort();
 
-    rend.window = SDL_CreateWindow("grafika",
+    rend.window = SDL_CreateWindow(GRAFIKA_TITLE,
                                    SDL_WINDOWPOS_CENTERED,
                                    SDL_WINDOWPOS_CENTERED,
                                    GRAFIKA_SCREEN_WIDTH,

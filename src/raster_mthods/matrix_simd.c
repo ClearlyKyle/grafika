@@ -1,3 +1,4 @@
+#define GRAFIKA_TITLE ("grafika - matrix_simd")
 #include "common.h"
 
 struct matrix_simd
