@@ -1,12 +1,12 @@
-// TODO :
-// 5 - colours will be stored in each vertex texture coordinates
-//      v1 - x, y, z + u, v     (u here can be Red)
-//      v2 - x, y, z + u, v     (u here can be Blue)
-//      v3 - x, y, z + u, v     (u here can be Green)
-//    v can store surface normals?
+#define GRAFIKA_TITLE         ("grafika - terry")
+#define GRAFIKA_SCREEN_WIDTH  (1280)
+#define GRAFIKA_SCREEN_HEIGHT (720)
+
 #include "raster_mthods/common.h"
 
 #define BENCH
+#define CCW_TRIANGLES
+#define LH_COORDINATE_SYSTEM
 
 //
 // CAMERA
@@ -83,7 +83,7 @@ int main(int argc, char *argv[])
     camera.speed         = 1.5f;
     vec3_set(camera.position, 37.0f, 92.0f, 15.0f);
     vec3_set(camera.target, 0.0f, 0.0f, 1.0f);
-    vec3_set(camera.up, 0.0f, -1.0f, 0.0f);
+    vec3_set(camera.up, 0.0f, 1.0f, 0.0f);
 
     const float chunk_point_scale    = 32.0f;
     const int   chunk_point_count    = 16;
@@ -103,8 +103,8 @@ int main(int argc, char *argv[])
 
             if (event.type == SDL_MOUSEMOTION && (event.motion.state & SDL_BUTTON(SDL_BUTTON_LEFT)))
             {
-                camera.yaw += (float)event.motion.xrel;
-                camera.pitch += (float)event.motion.yrel;
+                camera.yaw -= (float)event.motion.xrel;
+                camera.pitch -= (float)event.motion.yrel;
 
                 camera.pitch = SDL_clamp(camera.pitch, -89.0f, 89.0f);
             }
@@ -353,7 +353,7 @@ struct terrain_data terrain_generate(struct arena *arena, int points, float scal
     }
 
     // generate indices
-    size_t trianlge_count = 0;
+    size_t triangle_count = 0;
     int    index_idx      = 0;
     for (int z = 0; z < points - 1; z++)
     {
@@ -365,39 +365,31 @@ struct terrain_data terrain_generate(struct arena *arena, int points, float scal
             const int bottom_left  = (z + 1) * points + x;
             const int bottom_right = bottom_left + 1;
 
-#if 0 // CW
-      // Triangle 1
-            trianlge_count++;
-            indices[index_idx].vt_idx  = top_left;
-            indices[index_idx++].v_idx = top_left;
-            
-            indices[index_idx].vt_idx  = bottom_left;
-            indices[index_idx++].v_idx = bottom_left;
-            
-            indices[index_idx].vt_idx  = top_right;
-            indices[index_idx++].v_idx = top_right;
-            
-            trianlge_count++;
-            // Triangle 2
-            indices[index_idx].vt_idx  = top_right;
-            indices[index_idx++].v_idx = top_right;
-            
-            indices[index_idx].vt_idx  = bottom_left;
-            indices[index_idx++].v_idx = bottom_left;
-            
-            indices[index_idx].vt_idx  = bottom_right;
-            indices[index_idx++].v_idx = bottom_right;
-#else // CCW
-      // Triangle 1
-            trianlge_count++;
+#ifdef CCW_TRIANGLES
+            // triangle 1
+            triangle_count++;
+
+            indices[index_idx++] = bottom_left;
+            indices[index_idx++] = top_right;
+            indices[index_idx++] = top_left;
+
+            triangle_count++;
+
+            // triangle 2
+            indices[index_idx++] = bottom_left;
+            indices[index_idx++] = bottom_right;
+            indices[index_idx++] = top_right;
+#else
+            // triangle 1
+            triangle_count++;
 
             indices[index_idx++] = top_left;
             indices[index_idx++] = top_right;
             indices[index_idx++] = bottom_left;
 
-            trianlge_count++;
+            triangle_count++;
 
-            // Triangle 2
+            // triangle 2
             indices[index_idx++] = top_right;
             indices[index_idx++] = bottom_right;
             indices[index_idx++] = bottom_left;
@@ -411,7 +403,7 @@ struct terrain_data terrain_generate(struct arena *arena, int points, float scal
     terrain.indices       = indices;
     terrain.indices_count = indicies_count;
 
-    terrain.triangle_count = trianlge_count;
+    terrain.triangle_count = triangle_count;
 
     return terrain;
 }
@@ -527,17 +519,25 @@ static void draw_triangle(mat4 MVP, vec3 verts[3], vec3 cam_pos)
     for (int i = 0; i < 3; ++i)
     {
         screen_space[i][0] = (ndc[i][0] + 1.0f) * 0.5f * GRAFIKA_SCREEN_WIDTH;
-        screen_space[i][1] = (ndc[i][1] + 1.0f) * 0.5f * GRAFIKA_SCREEN_HEIGHT;
+        screen_space[i][1] = (1.0f - ndc[i][1]) * 0.5f * GRAFIKA_SCREEN_HEIGHT;
         screen_space[i][2] = (ndc[i][2] + 1.0f) * 0.5f;
     }
 
-    float dx1     = screen_space[1][0] - screen_space[0][0];
-    float dy1     = screen_space[1][1] - screen_space[0][1];
-    float dx2     = screen_space[2][0] - screen_space[0][0];
-    float dy2     = screen_space[2][1] - screen_space[0][1];
-    float cross_z = dx1 * dy2 - dy1 * dx2;
+    const float dY0 = screen_space[2][1] - screen_space[1][1], dX0 = screen_space[1][0] - screen_space[2][0];
+    const float dY1 = screen_space[0][1] - screen_space[2][1], dX1 = screen_space[2][0] - screen_space[0][0];
+    const float dY2 = screen_space[1][1] - screen_space[0][1], dX2 = screen_space[0][0] - screen_space[1][0];
 
-    if (cross_z >= 0.0f) return; // backface
+    // back face culling
+    float signed_area = (dX1 * dY2 - dY1 * dX2);
+
+    // If cross_z > 0, the triangle is counter-clockwise (CCW).
+    // If cross_z < 0, the triangle is clockwise (CW).
+    // If cross_z == 0, the triangle is degenerate (its points are collinear).
+    if (signed_area < 0.0f) return;
+
+    const float C0 = (screen_space[2][0] * screen_space[1][1]) - (screen_space[2][1] * screen_space[1][0]);
+    const float C1 = (screen_space[0][0] * screen_space[2][1]) - (screen_space[0][1] * screen_space[2][0]);
+    const float C2 = (screen_space[1][0] * screen_space[0][1]) - (screen_space[1][1] * screen_space[0][0]);
 
     // compute triangle normal
     vec3 ab, ac, normal;
@@ -565,24 +565,17 @@ static void draw_triangle(mat4 MVP, vec3 verts[3], vec3 cam_pos)
         shaded_colour[i] = SDL_clamp(shaded_colour[i], 0, 255);
     }
 
+    // calculate bounding rectangle
     int AABB[4] = {0};
     AABB_make(screen_space, AABB);
 
     // draw_AABB_outline(AABB, 0xFFFFFFFF);
 
-    const float dY0 = screen_space[2][1] - screen_space[1][1], dX0 = screen_space[1][0] - screen_space[2][0];
-    const float dY1 = screen_space[0][1] - screen_space[2][1], dX1 = screen_space[2][0] - screen_space[0][0];
-    const float dY2 = screen_space[1][1] - screen_space[0][1], dX2 = screen_space[0][0] - screen_space[1][0];
-
-    const float C0 = (screen_space[2][0] * screen_space[1][1]) - (screen_space[2][1] * screen_space[1][0]);
-    const float C1 = (screen_space[0][0] * screen_space[2][1]) - (screen_space[0][1] * screen_space[2][0]);
-    const float C2 = (screen_space[1][0] * screen_space[0][1]) - (screen_space[1][1] * screen_space[0][0]);
-
-    const float inv_area = 1.0f / (dX1 * dY2 - dY1 * dX2);
-
     float alpha = (dY0 * ((float)AABB[0])) + (dX0 * ((float)AABB[1])) + C0;
     float betaa = (dY1 * ((float)AABB[0])) + (dX1 * ((float)AABB[1])) + C1;
     float gamma = (dY2 * ((float)AABB[0])) + (dX2 * ((float)AABB[1])) + C2;
+
+    const float inv_area = 1.0f / signed_area;
 
     screen_space[1][2] = (screen_space[1][2] - screen_space[0][2]) * inv_area;
     screen_space[2][2] = (screen_space[2][2] - screen_space[0][2]) * inv_area;
@@ -647,11 +640,13 @@ static void terrain_raster(struct terrain_data *terrain, mat4 MVP, vec3 cam_pos)
             for (size_t j = 0; j < 3; ++j)
             {
                 int pos_index = terrain->indices[i * 3 + j];
-#if 0
+
+#ifdef CCW_TRIANGLES
                 const size_t store_index = j; // CCW triangles
 #else
                 const size_t store_index = 2 - j; // CW triangles (which blender uses)
 #endif
+
                 verts[store_index][0] = terrain->vertices[3 * pos_index + 0];
                 verts[store_index][1] = terrain->vertices[3 * pos_index + 1];
                 verts[store_index][2] = terrain->vertices[3 * pos_index + 2];
