@@ -5,7 +5,7 @@
 #include "utils.h"
 
 #ifdef _MSC_VER
-#include <intrin.h> // For MSVC intrinsic functions
+#include <intrin.h>
 #else
 #include <windows.h>
 #endif
@@ -16,7 +16,7 @@
 
 struct tymer
 {
-    Uint64 start, elapsed, perf_frequency;
+    uint64_t start, elapsed, perf_frequency;
 };
 
 #define TIMER_INIT                                       \
@@ -53,6 +53,7 @@ struct debug_record
     char    *file_name;
     char    *function_name;
     uint32_t line_number;
+    uint32_t initialised;
 };
 
 struct debug_event
@@ -201,12 +202,16 @@ static inline uint64_t Atomic_Add64(uint64_t volatile *original_value, uint64_t 
 #endif
 }
 
-int debug_timed_block_begin(const int counter, char *file_name, int line_number, char *function_name)
+inline int debug_timed_block_begin(const int counter, char *file_name, int line_number, char *function_name)
 {
     struct debug_record *record = global_debug_state->records + counter;
-    record->file_name           = file_name;
-    record->function_name       = function_name;
-    record->line_number         = cast_i32_to_u32(line_number);
+    if (record->initialised == 0)
+    {
+        record->file_name     = file_name;
+        record->function_name = function_name;
+        record->line_number   = cast_i32_to_u32(line_number);
+        record->initialised   = 1;
+    }
 
     const uint64_t table_and_event_index = Atomic_Add64(&global_debug_state->table_and_event_index, 1);
     const uint32_t table_index           = (const uint32_t)(table_and_event_index >> 32);
@@ -219,13 +224,13 @@ int debug_timed_block_begin(const int counter, char *file_name, int line_number,
     // event->thread_index       = (uint16_t)Get_Thread_ID(); // NOTE : casting
     event->record_index = cast_i32_to_u32(counter);
     event->type         = (uint16_t)(debug_event_type_begin_block); // NOTE : casting
-    event->cycles       = __rdtsc();
     event->time         = SDL_GetPerformanceCounter();
+    event->cycles       = __rdtsc();
 
     return counter;
 }
 
-int debug_timed_block_end(const int counter, const uint64_t current_cycles)
+inline int debug_timed_block_end(const int counter, const uint64_t current_cycles)
 {
     const uint64_t table_and_event_index = Atomic_Add64(&global_debug_state->table_and_event_index, 1);
     const uint32_t table_index           = (const uint32_t)(table_and_event_index >> 32);
